@@ -773,6 +773,36 @@ function buildWire(cat, ls, rs, speed, mode, estop) {
   };
 }
 
+// ─── XML syntax highlighter for the URDF preview ─────────────────────────────
+// Single regex pass with capture groups, rather than four chained .replace()
+// calls — chaining is unsafe here because each earlier replacement injects
+// literal text (e.g. `class="tag"`) that the next replacement's pattern can
+// then re-match and corrupt (visible previously as `attr">class="tag">`
+// garbage in the rendered output).
+function highlightXml(line) {
+  const XML_TOKEN = /(<!--.*?-->)|(<\/?[\w]+)|([\w_]+)(=)("[^"]*")/g;
+  let out = "";
+  let last = 0;
+  let m;
+  while ((m = XML_TOKEN.exec(line)) !== null) {
+    out += escapeHtml(line.slice(last, m.index));
+    if (m[1]) {
+      out += `<span class="comment">${escapeHtml(m[1])}</span>`;
+    } else if (m[2]) {
+      out += `<span class="tag">${escapeHtml(m[2])}</span>`;
+    } else if (m[3]) {
+      out += `<span class="attr">${escapeHtml(m[3])}</span>${m[4]}<span class="val">${escapeHtml(m[5])}</span>`;
+    }
+    last = XML_TOKEN.lastIndex;
+  }
+  out += escapeHtml(line.slice(last));
+  return out;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function RCSP1Controller() {
   const [activeCat, setActiveCat] = useState("legged");
@@ -1038,14 +1068,9 @@ export default function RCSP1Controller() {
               <div className="rcsp-sec-badge">Copy → paste into your URDF</div>
             </div>
             <pre className="rcsp-spec">
-              {buildURDF(activeCat, speed / 100).split("\n").map((line, i) => {
-                const colored = line
-                  .replace(/(<\/?[\w]+)/g, '<span class="tag">$1</span>')
-                  .replace(/([\w_]+)=/g, '<span class="attr">$1</span>=')
-                  .replace(/"([^"]*)"/g, '"<span class="val">$1</span>"')
-                  .replace(/(<!--.*?-->)/g, '<span class="comment">$1</span>');
-                return <div key={i} dangerouslySetInnerHTML={{ __html: colored }} />;
-              })}
+              {buildURDF(activeCat, speed / 100).split("\n").map((line, i) => (
+                <div key={i} dangerouslySetInnerHTML={{ __html: highlightXml(line) }} />
+              ))}
             </pre>
 
             {/* Examples */}

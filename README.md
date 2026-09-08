@@ -12,10 +12,13 @@
 [![Website](https://img.shields.io/badge/website-rrcf--foundation.github.io-5fc9c0.svg)](https://rrcf-foundation.github.io)
 
 *One `.rrcf` file. Any robot. Any operator — human, another robot, or an AI model.*
+*One consistent wire format. Any dashboard, any time-series store, any replay tool.*
 
 [Website](https://rrcf-foundation.github.io) ·
 [Specification](RRCF_v02_RFC_Specification.pdf) ·
+[Live Controller Demo](https://rrcf-foundation.github.io/demo/index.html) ·
 [Converter](https://rrcf-foundation.github.io/tools/converter.html) ·
+[ROS 2 Bridge](reference-implementation/rrcf_ros2_bridge/) ·
 [Adoption Guide](rrcf-adoption-guide.md)
 
 </div>
@@ -30,6 +33,8 @@
 - [Morphology categories](#morphology-categories)
 - [A minimal `.rrcf` example](#a-minimal-rrcf-example)
 - [Wire format](#wire-format)
+- [Also a standard for telemetry, dashboards, and data stores](#also-a-standard-for-telemetry-dashboards-and-data-stores)
+- [Recording & playback — rosbag/MCAP + Foxglove](#recording--playback--rosbagmcap--foxglove)
 - [VLA integration — RAG for robots](#vla-integration--rag-for-robots)
 - [Repository layout](#repository-layout)
 - [Generating an `.rrcf` draft from an existing robot](#generating-an-rrcf-draft-from-an-existing-robot)
@@ -92,9 +97,9 @@ the shared control and safety contract.
 
 ## The five pillars
 
-1. **Remote Control Standard** — one unified UI for any robot, any morphology
+1. **Remote Control Standard** — one unified UI for any robot, any morphology, covering both **live control** and **replay** of a previously recorded command stream (same wire format, same skill/mode vocabulary, so a recorded session can be played back through the identical panel it was captured from)
 2. **Fleet Management Standard** — complements VDA 5050 / Open-RMF, doesn't compete
-3. **Collection & Integration Standard** — universal wire format for any external system (data pipelines, VLA training, digital twins, ERP/IoT)
+3. **Collection & Integration Standard** — universal wire format for any external system: data pipelines, digital twins, ERP/IoT, dashboards and time-series stores (see [below](#also-a-standard-for-telemetry-dashboards-and-data-stores)), and **imitation learning** — every operator session, human or teleoperated demonstration, is already a `(state, action)` trajectory in one consistent schema across every robot, ready to train on without a per-robot data-wrangling step
 4. **Safety Standard** — e-stop, watchdog, geofence, speed limits standardized across all robots
 5. **Choreography Standard** — synchronized multi-robot missions via `.rrcm` files
 
@@ -188,6 +193,64 @@ produces the same normalized command message on the wire:
 Axes are always normalized to `[-1.0, 1.0]`, `estop` is always present, and a
 ROS 2 `geometry_msgs/Twist`-shaped sub-object is always included — so any
 consumer, from a browser UI to a ROS 2 node, can read it directly.
+
+## Also a standard for telemetry, dashboards, and data stores
+
+RRCF is a control standard first, but the same property that makes it a
+control standard — one consistent field schema (`lx/ly/rx/ry`, `estop`,
+`twist`, `mode`, `skill`, `ts`, plus whatever's declared under
+`<telemetry>`) across every robot and every morphology category — makes it
+equally a **telemetry and time-series standard**, for free, with no separate
+schema to design:
+
+- **Dashboards** — a fleet dashboard built against the RRCF schema renders
+  the same battery/speed/temp/custom-field widgets for a wheeled robot, a
+  drone, and a humanoid, because the field names and shapes don't change
+  across categories. No per-robot dashboard config.
+- **Time-series stores** — writing RRCF telemetry straight into InfluxDB,
+  TimescaleDB, Prometheus, or any time-series database gives you one
+  consistent measurement schema across your entire fleet, not one schema per
+  vendor. Queries, alerts, and retention policies are written once and work
+  for every robot that speaks RRCF.
+- **Data streams** — the same `operator_cmd`/`telemetry` MQTT (or WebSocket)
+  endpoints declared in `<transport>` are just as usable as a generic
+  pub/sub data stream for any consumer that wants live robot state, not only
+  for the control loop itself.
+
+This is the same "one schema, many robots" property described in the
+[VLA/RAG section](#vla-integration--rag-for-robots) below and in the
+[rosbag/MCAP + Foxglove use case](#recording--playback--rosbagmcap--foxglove)
+— control, dashboards, storage, and recording all reuse one declared field
+schema instead of four separate ones.
+
+## Recording & playback — rosbag/MCAP + Foxglove
+
+If a robot's command and telemetry topics are already emitted in RRCF's
+wire format — the same `lx/ly/rx/ry`, `estop`, `twist`, `ts` field names
+across every robot and every category — then recording them into an
+[MCAP](https://mcap.dev/) file (which natively supports arbitrary
+JSON-schema channels) gets you a real, concrete win today, not a
+hypothetical one:
+
+- **[Foxglove](https://foxglove.dev/)'s generic Plot, Raw, and 3D panels can
+  render straight off the RRCF schema.** Today, a Foxglove layout is
+  hand-built per robot, because every vendor's topic names and fields
+  differ — a battery field might be `battery_pct`, `batt`, or `soc`
+  depending on who built the robot. With RRCF, it's always `battery` under
+  `<telemetry>`, `lx`/`ly`/`rx`/`ry` for stick input, `estop`/`twist`/`ts` on
+  every message, regardless of vendor or morphology category.
+- **One layout template works for any RRCF-compliant robot.** Build a
+  Foxglove layout once against the RRCF wire format, and it works
+  unmodified for a wheeled robot, a drone, or a humanoid — the schema is
+  the same, only the values differ.
+- **rosbag/MCAP recordings become directly comparable across robots and
+  vendors**, since the recorded fields mean the same thing everywhere. A
+  `sit` skill call or an `estop:true` event looks identical in the recording
+  whether it came from a Go2 or a Franka arm.
+- This is buildable now, on top of what's already public: emit RRCF wire
+  format on your existing topics, record with `ros2 bag record` (Foxglove's
+  MCAP writer works the same way), and open the result in Foxglove — no new
+  tooling required on either side of the pipeline.
 
 ## VLA integration — RAG for robots
 
@@ -295,7 +358,8 @@ Two reference implementations cover both sides of the conformance contract:
   humanoid, manipulator, aerial, marine surface, marine sub) — joystick axis
   mapping, mode/skill button legends, telemetry fields, and ROS 2 `Twist`
   translation, all driven from the category registry rather than per-robot
-  code.
+  code. **[Try it live in your browser](https://rrcf-foundation.github.io/demo/index.html)**
+  — no install, switches between all nine categories.
 
 - **Robot side** —
   [`reference-implementation/rrcf_ros2_bridge/`](reference-implementation/rrcf_ros2_bridge/)
