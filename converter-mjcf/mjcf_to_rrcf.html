@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MJCF → RRCF Converter</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#141a21; --line:#232b33; --text:#d7dee5; --dim:#7b8794;
+    --accent:#5fc9c0; --accent2:#e8a33d; --danger:#e06c75; --mono:'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;line-height:1.5;}
+  header{padding:20px 24px 16px;border-bottom:1px solid var(--line);}
+  header h1{margin:0;font-size:15px;font-weight:600;letter-spacing:.02em;color:var(--text);}
+  header h1 span{color:var(--accent);}
+  header p{margin:6px 0 0;color:var(--dim);font-size:12px;max-width:640px;}
+  .wrap{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);min-height:calc(100vh - 90px);}
+  @media (max-width: 900px){.wrap{grid-template-columns:1fr;}}
+  .pane{background:var(--bg);display:flex;flex-direction:column;min-width:0;}
+  .pane-head{padding:10px 16px;border-bottom:1px solid var(--line);color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.08em;display:flex;justify-content:space-between;align-items:center;}
+  .drop{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;border:1px dashed var(--line);margin:16px;border-radius:6px;transition:border-color .15s,background .15s;text-align:center;}
+  .drop.drag{border-color:var(--accent);background:rgba(95,201,192,.05);}
+  .drop .hint{color:var(--dim);font-size:12px;max-width:360px;}
+  .drop button, .toolbar button{background:var(--panel);color:var(--text);border:1px solid var(--line);padding:7px 14px;border-radius:4px;font-family:var(--mono);font-size:12px;cursor:pointer;}
+  .drop button:hover, .toolbar button:hover{border-color:var(--accent);color:var(--accent);}
+  input[type=file]{display:none;}
+  textarea, pre{width:100%;flex:1;background:var(--bg);color:var(--text);border:0;resize:none;font-family:var(--mono);font-size:12px;padding:16px;white-space:pre;overflow:auto;margin:0;}
+  .fields{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;flex-wrap:wrap;}
+  .fields label{color:var(--dim);font-size:11px;display:flex;flex-direction:column;gap:4px;}
+  .fields input, .fields select{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:4px;padding:5px 8px;font-family:var(--mono);font-size:12px;min-width:150px;}
+  .toolbar{padding:10px 16px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;justify-content:space-between;}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;}
+  .badge{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:2px 7px;font-size:10.5px;color:var(--dim);}
+  .badge.cat{color:var(--accent2);border-color:var(--accent2);}
+  .badge.warn{color:var(--danger);border-color:var(--danger);}
+  .filelist{padding:0 16px 12px;color:var(--dim);font-size:11px;}
+  .filelist code{color:var(--text);}
+  .empty{color:var(--dim);text-align:center;padding:40px;font-size:12px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MJCF <span>→</span> RRCF converter</h1>
+  <p>Drop one or more MJCF <code>.xml</code> files (include a model's <code>&lt;include&gt;</code>d files too, if it has any) to generate a draft RRCF 1.0 operator-interface file. Runs entirely in your browser — nothing is uploaded. This is a heuristic draft: verify morphology category, skills, and safety fields before use (RRCF spec §11).</p>
+</header>
+
+<div class="wrap">
+  <div class="pane">
+    <div class="pane-head">Input · MJCF</div>
+    <div class="drop" id="drop">
+      <div>Drag & drop .xml file(s) here</div>
+      <div class="hint">or paste MJCF text into the box below. If the model uses &lt;include file="..."/&gt;, drop those files alongside the main one — they'll be inlined automatically.</div>
+      <button id="pickBtn">Choose files…</button>
+      <input type="file" id="fileInput" accept=".xml" multiple>
+    </div>
+    <div class="filelist" id="filelist"></div>
+    <textarea id="mjcfText" placeholder="...or paste raw MJCF XML here" spellcheck="false"></textarea>
+  </div>
+
+  <div class="pane">
+    <div class="pane-head">Output · .rrcf<span id="statusBadge"></span></div>
+    <div class="fields">
+      <label>Robot name
+        <input id="fName" placeholder="(from filename)">
+      </label>
+      <label>Vendor
+        <input id="fVendor" placeholder="Unknown — set vendor">
+      </label>
+      <label>Category override
+        <select id="fCategory">
+          <option value="">(auto-detect)</option>
+          <option value="wheeled">wheeled</option>
+          <option value="legged">legged</option>
+          <option value="loco_manip">loco_manip</option>
+          <option value="wheeled_humanoid">wheeled_humanoid</option>
+          <option value="full_humanoid">full_humanoid</option>
+          <option value="manipulator">manipulator</option>
+          <option value="aerial">aerial</option>
+          <option value="marine_surface">marine_surface</option>
+          <option value="marine_sub">marine_sub</option>
+          <option value="industrial_vehicle">industrial_vehicle</option>
+          <option value="agri_vehicle">agri_vehicle</option>
+          <option value="custom">custom</option>
+        </select>
+      </label>
+    </div>
+    <div class="badges" style="padding:10px 16px 0;" id="badges"></div>
+    <pre id="output"><div class="empty">Load an MJCF file to generate a draft .rrcf</div></pre>
+    <div class="toolbar">
+      <span style="color:var(--dim);font-size:11px;">Draft only — see spec §11 before deploying</span>
+      <div style="display:flex;gap:8px;">
+        <button id="copyBtn">Copy</button>
+        <button id="downloadBtn">Download .rrcf</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- MJCF parsing with <default> class resolution ----------
+
+function parseXmlFiles(fileMap) {
+  // fileMap: { filename: text }. Resolves <include file="..."/> by inlining
+  // matching filenames from fileMap (best-effort — only works for files the
+  // user also dropped in).
+  const mainName = Object.keys(fileMap)[0];
+  const parser = new DOMParser();
+
+  function resolveIncludes(doc, depth) {
+    if (depth > 6) return;
+    const includes = Array.from(doc.querySelectorAll('include'));
+    for (const inc of includes) {
+      const file = inc.getAttribute('file');
+      const base = file ? file.split('/').pop() : null;
+      const match = base && Object.keys(fileMap).find(f => f.split('/').pop() === base);
+      if (match) {
+        const subDoc = parser.parseFromString(fileMap[match], 'text/xml');
+        resolveIncludes(subDoc, depth + 1);
+        const subMujoco = subDoc.querySelector('mujoco');
+        const parent = inc.parentNode;
+        if (subMujoco) {
+          Array.from(subMujoco.children).forEach(child => {
+            parent.insertBefore(child.cloneNode(true), inc);
+          });
+        }
+      }
+      inc.parentNode.removeChild(inc);
+    }
+  }
+
+  const doc = parser.parseFromString(fileMap[mainName], 'text/xml');
+  const perr = doc.querySelector('parsererror');
+  if (perr) throw new Error('XML parse error in ' + mainName);
+  resolveIncludes(doc, 0);
+  return { doc, mainName };
+}
+
+// Build className -> resolved-attrs-per-tag map from nested <default> blocks.
+function buildDefaults(doc) {
+  const classes = {}; // className -> { tag: {attrs} }
+  function walk(el, parentClass) {
+    const cls = el.getAttribute('class') || parentClass || 'main';
+    if (!classes[cls]) classes[cls] = {};
+    // inherit from parent class first
+    if (parentClass && classes[parentClass]) {
+      for (const tag in classes[parentClass]) {
+        classes[cls][tag] = Object.assign({}, classes[parentClass][tag], classes[cls][tag] || {});
+      }
+    }
+    Array.from(el.children).forEach(child => {
+      if (child.tagName === 'default') {
+        walk(child, cls);
+      } else {
+        const tag = child.tagName;
+        if (!classes[cls][tag]) classes[cls][tag] = {};
+        Array.from(child.attributes).forEach(attr => {
+          classes[cls][tag][attr.name] = attr.value;
+        });
+      }
+    });
+  }
+  const topDefaults = doc.querySelectorAll('mujoco > default');
+  topDefaults.forEach(d => walk(d, null));
+  return classes;
+}
+
+function resolveAttr(el, attrName, classes, tag, fallback) {
+  if (el.hasAttribute(attrName)) return el.getAttribute(attrName);
+  const cls = el.getAttribute('class') || 'main';
+  const byClass = classes[cls] && classes[cls][tag];
+  if (byClass && byClass[attrName] !== undefined) return byClass[attrName];
+  const byMain = classes['main'] && classes['main'][tag];
+  if (byMain && byMain[attrName] !== undefined) return byMain[attrName];
+  return fallback;
+}
+
+// ---------- classification (mirrors mjcf_to_rrcf.py heuristics) ----------
+
+const LEG_WORDS = ['hip','knee','ankle','thigh','calf','shin','leg','foot'];
+const ARM_WORDS = ['shoulder','elbow','wrist','forearm','upperarm','arm'];
+const HAND_WORDS = ['finger','thumb','proximal','distal','gripper','grip'];
+const WHEEL_WORDS = ['wheel','steer','turn','forward','drive','caster'];
+
+function classifyName(name) {
+  const n = (name || '').toLowerCase();
+  if (LEG_WORDS.some(w => n.includes(w))) return 'leg';
+  if (HAND_WORDS.some(w => n.includes(w))) return 'hand';
+  if (ARM_WORDS.some(w => n.includes(w))) return 'arm';
+  if (WHEEL_WORDS.some(w => n.includes(w))) return 'wheel';
+  return 'other';
+}
+
+function analyzeMjcf(doc) {
+  const classes = buildDefaults(doc);
+  const joints = Array.from(doc.querySelectorAll('worldbody joint, worldbody freejoint'))
+    .concat(Array.from(doc.querySelectorAll('body joint, body freejoint')));
+  const jointByName = {};
+  let hasFreejoint = false;
+  joints.forEach(j => {
+    if (j.tagName === 'freejoint') { hasFreejoint = true; return; }
+    const name = j.getAttribute('name') || '';
+    jointByName[name] = j;
+  });
+  // also catch <joint type="free">
+  Array.from(doc.querySelectorAll('joint')).forEach(j => {
+    const type = resolveAttr(j, 'type', classes, 'joint', 'hinge');
+    if (type === 'free') hasFreejoint = true;
+  });
+
+  const actuatorNodes = Array.from(doc.querySelectorAll('actuator > *'));
+  const buckets = { leg: [], arm: [], hand: [], wheel: [], other: [] };
+  const actuators = [];
+  actuatorNodes.forEach(a => {
+    const name = a.getAttribute('name') || (a.tagName + '_' + actuators.length);
+    const jointRef = a.getAttribute('joint');
+    const rangeStr = resolveAttr(a, 'ctrlrange', classes, a.tagName, '-1 1');
+    let [lo, hi] = rangeStr.trim().split(/\s+/).map(Number);
+    if (isNaN(lo) || isNaN(hi)) { lo = -1; hi = 1; }
+    const driven = jointRef || name;
+    const bucket = classifyName(driven);
+    buckets[bucket].push(name);
+    actuators.push({ name, ctrlrange: [lo, hi], bucket });
+  });
+
+  const sensors = Array.from(doc.querySelectorAll('sensor > *')).map(
+    s => s.getAttribute('name') || s.tagName
+  );
+
+  return { hasFreejoint, buckets, actuators, sensors, nu: actuators.length, njnt: joints.length };
+}
+
+function guessCategory(info) {
+  const hasLegs = info.buckets.leg.length >= 2;
+  const hasArms = info.buckets.arm.length >= 1;
+  const hasWheels = info.buckets.wheel.length >= 1;
+  if (info.hasFreejoint && hasLegs && hasArms) return 'full_humanoid';
+  if (info.hasFreejoint && hasLegs) return 'legged';
+  if (hasLegs && hasArms) return 'loco_manip';
+  if (hasWheels) return 'wheeled';
+  if (hasArms && !hasLegs && !info.hasFreejoint) return 'manipulator';
+  return 'custom';
+}
+
+// ---------- RRCF XML generation ----------
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function attrs(obj) {
+  return Object.entries(obj).filter(([,v]) => v !== undefined && v !== null)
+    .map(([k,v]) => ` ${k}="${esc(v)}"`).join('');
+}
+
+function buildRrcf(info, category, metaName, vendor, mjcfFilename, overrideCat) {
+  const cat = overrideCat || category;
+  const slug = metaName.toLowerCase().replace(/\s+/g, '_');
+  const locoActuators = info.buckets.leg.concat(info.buckets.wheel);
+  const armActuators = info.buckets.arm;
+  const handActuators = info.buckets.hand;
+  const otherActuators = info.buckets.other;
+  const byName = Object.fromEntries(info.actuators.map(a => [a.name, a]));
+
+  let out = [];
+  out.push('<?xml version="1.0" encoding="UTF-8"?>');
+  out.push(`<rrcf version="1.0" xmlns="https://rrcf.io/schema/1.0">`);
+  out.push(`  <!-- AUTO-GENERATED DRAFT via mjcf_to_rrcf.html — verify before use. ${info.nu} actuators / ${info.njnt} joints in source MJCF. Category is a heuristic guess unless overridden. -->`);
+
+  out.push('  <meta>');
+  out.push(`    <name>${esc(metaName)}</name>`);
+  out.push(`    <vendor>${esc(vendor || 'Unknown — set vendor')}</vendor>`);
+  out.push(`    <model>${esc(metaName)}</model>`);
+  out.push(`    <physical_ref format="mjcf" path="${esc(mjcfFilename)}"/>`);
+  out.push('  </meta>');
+
+  out.push(`  <primary category="${esc(cat)}">`);
+  if (['legged','full_humanoid','loco_manip','wheeled','wheeled_humanoid'].includes(cat)) {
+    out.push(`    <locomotion axes="vx vy wz" max_vx="1.0" max_vy="0.5" max_wz="1.5"/>`);
+    const modes = (cat.includes('legged') || cat.includes('humanoid') || cat.includes('loco')) ? 'stand walk' : 'drive';
+    out.push(`    <modes>${modes}</modes>`);
+    if (cat.includes('humanoid') || cat.includes('legged') || cat.includes('loco')) {
+      out.push(`    <body_pose pitch="true" roll="true" height="true"/>`);
+    }
+  } else if (cat === 'manipulator') {
+    out.push(`    <modes>teach replay</modes>`);
+  }
+  out.push('  </primary>');
+
+  const attachLines = [];
+  if (armActuators.length && cat !== 'manipulator') {
+    attachLines.push(`    <attach type="manipulator" id="arm_1" mount="torso" dof="${armActuators.length}">`);
+    attachLines.push(`      <modes>stow reach teach replay</modes>`);
+    attachLines.push(`      <ee_control cartesian="true"/>`);
+    attachLines.push(`    </attach>`);
+  }
+  if (handActuators.length) {
+    const mount = armActuators.length ? 'arm_1/ee' : 'torso';
+    attachLines.push(`    <attach type="gripper" id="grip_1" mount="${mount}" fingers="${Math.max(1,handActuators.length)}"/>`);
+  }
+  if (attachLines.length) {
+    out.push('  <attachments>');
+    out.push(...attachLines);
+    out.push('  </attachments>');
+  }
+
+  out.push('  <hud>');
+  out.push(`    <field id="mode" position="1" label="MODE"/>`);
+  out.push(`    <field id="battery" position="2" label="BATT"/>`);
+  out.push(`    <field id="estop" position="3" label="STOP" alert="true"/>`);
+  out.push('  </hud>');
+
+  out.push('  <skills>');
+  if (['legged','full_humanoid','loco_manip','wheeled_humanoid'].includes(cat)) {
+    out.push(`    <skill id="stand" label="Stand" standard="true" cmd='{"mode":"stand"}'/>`);
+    out.push(`    <skill id="sit" label="Sit" standard="true" cmd='{"mode":"sit"}'/>`);
+  }
+  out.push(`    <!-- TODO: declare vendor-specific skills here. Skills — not raw joint sliders — are RRCF's mechanism for exposing high-DOF behavior; see spec §9. -->`);
+  out.push('  </skills>');
+
+  out.push('  <input_modalities>');
+  out.push(`    <modality type="touch_web" enabled="true"/>`);
+  if (locoActuators.length) {
+    out.push(`    <modality type="hid_gamepad" enabled="true" standard="xinput">`);
+    out.push(`      <axis hid="left_x" rrcf="lx"/>`);
+    out.push(`      <axis hid="left_y" rrcf="ly" invert="true"/>`);
+    out.push(`      <button hid="B" action="estop"/>`);
+    out.push('    </modality>');
+  }
+  out.push('  </input_modalities>');
+
+  const candidates = otherActuators.concat(armActuators, handActuators);
+  const exposed = candidates.slice(0, 5);
+  const unexposed = candidates.slice(5);
+  if (exposed.length) {
+    out.push('  <custom_controls max="5">');
+    exposed.forEach(name => {
+      const a = byName[name];
+      const [lo, hi] = a ? a.ctrlrange : [-1, 1];
+      out.push(`    <control type="slider" id="${esc(name)}" label="${esc(name)}" min="${lo.toFixed(3)}" max="${hi.toFixed(3)}"/>`);
+    });
+    if (unexposed.length) {
+      out.push(`    <!-- ${unexposed.length} more actuator(s) not exposed (RRCF custom_controls cap is 5): ${esc(unexposed.join(', '))}. Fold these into <skills> or a dedicated <attach> block rather than raising the cap. -->`);
+    }
+    out.push('  </custom_controls>');
+  }
+
+  out.push('  <telemetry>');
+  if (info.sensors.length) {
+    info.sensors.forEach(s => out.push(`    <field id="${esc(s)}" unit=""/>`));
+  } else {
+    out.push(`    <field id="battery" unit="%" warn_below="20"/>`);
+    out.push(`    <!-- No <sensor> elements found in MJCF — battery field is a placeholder. -->`);
+  }
+  out.push('  </telemetry>');
+
+  out.push('  <safety>');
+  out.push(`    <estop required="true" topic="/rrcf/${esc(slug)}/estop" qos="2"/>`);
+  out.push(`    <watchdog timeout_ms="500" action="halt"/>`);
+  if (locoActuators.length) out.push(`    <speed_limit max_vx="1.0" max_wz="1.5"/>`);
+  out.push('  </safety>');
+
+  out.push('  <transport>');
+  out.push(`    <endpoint role="operator_cmd" protocol="rrcf_mqtt" topic="/rrcf/${esc(slug)}/cmd" broker="\${MQTT_BROKER}"/>`);
+  out.push(`    <endpoint role="telemetry" protocol="mqtt" topic="/rrcf/${esc(slug)}/state" frequency_hz="10"/>`);
+  out.push(`    <endpoint role="websocket" protocol="websocket" port="9090"/>`);
+  out.push(`    <!-- TODO: replace placeholder broker/topic values before deployment. -->`);
+  out.push('  </transport>');
+
+  out.push('  <extensions/>');
+  out.push('</rrcf>');
+  return out.join('\n');
+}
+
+// ---------- UI wiring ----------
+
+let loadedFiles = {}; // filename -> text
+let lastResult = null;
+
+const dropEl = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+const filelistEl = document.getElementById('filelist');
+const mjcfText = document.getElementById('mjcfText');
+const outputEl = document.getElementById('output');
+const badgesEl = document.getElementById('badges');
+const statusBadge = document.getElementById('statusBadge');
+
+document.getElementById('pickBtn').onclick = () => fileInput.click();
+
+['dragenter','dragover'].forEach(ev => dropEl.addEventListener(ev, e => {
+  e.preventDefault(); dropEl.classList.add('drag');
+}));
+['dragleave','drop'].forEach(ev => dropEl.addEventListener(ev, e => {
+  e.preventDefault(); dropEl.classList.remove('drag');
+}));
+dropEl.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+function handleFiles(fileListObj) {
+  const files = Array.from(fileListObj).filter(f => f.name.endsWith('.xml'));
+  if (!files.length) return;
+  let remaining = files.length;
+  files.forEach(f => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      loadedFiles[f.name] = reader.result;
+      remaining--;
+      if (remaining === 0) {
+        renderFileList();
+        // main file = first one that contains <mujoco ...> as top element and isn't purely an include fragment
+        mjcfText.value = loadedFiles[files[0].name];
+        runConversion();
+      }
+    };
+    reader.readAsText(f);
+  });
+}
+
+function renderFileList() {
+  const names = Object.keys(loadedFiles);
+  filelistEl.innerHTML = names.length
+    ? 'Loaded: ' + names.map(n => `<code>${n}</code>`).join(', ')
+    : '';
+}
+
+mjcfText.addEventListener('input', () => {
+  if (mjcfText.value.trim()) {
+    loadedFiles = { 'pasted.xml': mjcfText.value };
+    renderFileList();
+    runConversion();
+  }
+});
+
+['fName','fVendor','fCategory'].forEach(id => {
+  document.getElementById(id).addEventListener('input', runConversion);
+  document.getElementById(id).addEventListener('change', runConversion);
+});
+
+function runConversion() {
+  if (!Object.keys(loadedFiles).length) return;
+  try {
+    const { doc, mainName } = parseXmlFiles(loadedFiles);
+    const info = analyzeMjcf(doc);
+    const category = guessCategory(info);
+    const nameField = document.getElementById('fName');
+    const defaultName = mainName.replace(/\.xml$/, '');
+    if (!nameField.value) nameField.placeholder = defaultName;
+    const metaName = nameField.value || defaultName;
+    const vendor = document.getElementById('fVendor').value;
+    const overrideCat = document.getElementById('fCategory').value;
+
+    const rrcf = buildRrcf(info, category, metaName, vendor, mainName, overrideCat);
+    lastResult = { rrcf, metaName };
+    outputEl.textContent = rrcf;
+
+    const usedCat = overrideCat || category;
+    let badgeHtml = `<span class="badge">${info.nu} actuators</span><span class="badge">${info.njnt} joints</span><span class="badge cat">category: ${usedCat}</span>`;
+    if (category === 'custom' && !overrideCat) {
+      badgeHtml += `<span class="badge warn">low-confidence guess — review</span>`;
+    }
+    badgesEl.innerHTML = badgeHtml;
+    statusBadge.textContent = '';
+  } catch (err) {
+    outputEl.innerHTML = `<div class="empty" style="color:var(--danger)">Error: ${esc(err.message)}</div>`;
+    badgesEl.innerHTML = '';
+  }
+}
+
+document.getElementById('copyBtn').onclick = () => {
+  if (!lastResult) return;
+  navigator.clipboard.writeText(lastResult.rrcf);
+  statusBadge.textContent = ' copied';
+  setTimeout(() => statusBadge.textContent = '', 1200);
+};
+document.getElementById('downloadBtn').onclick = () => {
+  if (!lastResult) return;
+  const blob = new Blob([lastResult.rrcf], { type: 'application/xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = lastResult.metaName.toLowerCase().replace(/\s+/g,'_') + '.rrcf';
+  a.click();
+};
+</script>
+</body>
+</html>

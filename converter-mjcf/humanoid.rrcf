@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rrcf version="1.0" xmlns="https://rrcf.io/schema/1.0">
+  <!-- AUTO-GENERATED DRAFT via mjcf_to_rrcf.py — verify before use. 21 actuators / 22 joints in source MJCF. Category is a heuristic guess unless overridden via the category flag. -->
+  <meta>
+    <name>humanoid</name>
+    <vendor>MuJoCo Playground</vendor>
+    <model>humanoid</model>
+    <physical_ref format="mjcf" path="humanoid.xml" />
+  </meta>
+  <primary category="full_humanoid">
+    <locomotion axes="vx vy wz" max_vx="1.0" max_vy="0.5" max_wz="1.5" />
+    <modes>stand walk</modes>
+    <body_pose pitch="true" roll="true" height="true" />
+  </primary>
+  <attachments>
+    <attach type="manipulator" id="arm_1" mount="torso" dof="6">
+      <modes>stow reach teach replay</modes>
+      <ee_control cartesian="true" />
+    </attach>
+  </attachments>
+  <hud>
+    <field id="mode" position="1" label="MODE" />
+    <field id="battery" position="2" label="BATT" />
+    <field id="estop" position="3" label="STOP" alert="true" />
+  </hud>
+  <skills>
+    <skill id="stand" label="Stand" standard="true" cmd="{&quot;mode&quot;:&quot;stand&quot;}" />
+    <skill id="sit" label="Sit" standard="true" cmd="{&quot;mode&quot;:&quot;sit&quot;}" />
+    <!-- TODO: declare vendor-specific skills here. Skills — not raw joint sliders — are RRCF's mechanism for exposing high-DOF behavior; see spec §9 (VLA Integration) for why. -->
+  </skills>
+  <input_modalities>
+    <modality type="touch_web" enabled="true" />
+    <modality type="hid_gamepad" enabled="true" standard="xinput">
+      <axis hid="left_x" rrcf="lx" />
+      <axis hid="left_y" rrcf="ly" invert="true" />
+      <button hid="B" action="estop" />
+    </modality>
+  </input_modalities>
+  <custom_controls max="5">
+    <control type="slider" id="abdomen_z" label="abdomen_z" min="-1.000" max="1.000" />
+    <control type="slider" id="abdomen_y" label="abdomen_y" min="-1.000" max="1.000" />
+    <control type="slider" id="abdomen_x" label="abdomen_x" min="-1.000" max="1.000" />
+    <control type="slider" id="shoulder1_right" label="shoulder1_right" min="-1.000" max="1.000" />
+    <control type="slider" id="shoulder2_right" label="shoulder2_right" min="-1.000" max="1.000" />
+    <!-- 4 more actuator(s) not exposed (RRCF custom_controls cap is 5): elbow_right, shoulder1_left, shoulder2_left, elbow_left. Fold these into skills or a dedicated attach block rather than raising the cap. -->
+  </custom_controls>
+  <telemetry>
+    <field id="battery" unit="%" warn_below="20" />
+    <!-- No <sensor> elements found in MJCF — battery field is a placeholder. -->
+  </telemetry>
+  <safety>
+    <estop required="true" topic="/rrcf/humanoid/estop" qos="2" />
+    <watchdog timeout_ms="500" action="halt" />
+    <speed_limit max_vx="1.0" max_wz="1.5" />
+  </safety>
+  <transport>
+    <endpoint role="operator_cmd" protocol="rrcf_mqtt" topic="/rrcf/humanoid/cmd" broker="${MQTT_BROKER}" />
+    <endpoint role="telemetry" protocol="mqtt" topic="/rrcf/humanoid/state" frequency_hz="10" />
+    <endpoint role="websocket" protocol="websocket" port="9090" />
+    <!-- TODO: replace placeholder broker/topic values before deployment. -->
+  </transport>
+  <extensions />
+</rrcf>

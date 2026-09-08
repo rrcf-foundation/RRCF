@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rrcf version="1.0" xmlns="https://rrcf.io/schema/1.0">
+  <!-- AUTO-GENERATED DRAFT via mjcf_to_rrcf.py — verify before use. 2 actuators / 3 joints in source MJCF. Category is a heuristic guess unless overridden via the category flag. -->
+  <meta>
+    <name>car</name>
+    <vendor>MuJoCo Playground</vendor>
+    <model>car</model>
+    <physical_ref format="mjcf" path="car.xml" />
+  </meta>
+  <primary category="wheeled">
+    <locomotion axes="vx vy wz" max_vx="1.0" max_vy="0.5" max_wz="1.5" />
+    <modes>drive</modes>
+  </primary>
+  <hud>
+    <field id="mode" position="1" label="MODE" />
+    <field id="battery" position="2" label="BATT" />
+    <field id="estop" position="3" label="STOP" alert="true" />
+  </hud>
+  <skills>
+    <!-- TODO: declare vendor-specific skills here. Skills — not raw joint sliders — are RRCF's mechanism for exposing high-DOF behavior; see spec §9 (VLA Integration) for why. -->
+  </skills>
+  <input_modalities>
+    <modality type="touch_web" enabled="true" />
+    <modality type="hid_gamepad" enabled="true" standard="xinput">
+      <axis hid="left_x" rrcf="lx" />
+      <axis hid="left_y" rrcf="ly" invert="true" />
+      <button hid="B" action="estop" />
+    </modality>
+  </input_modalities>
+  <telemetry>
+    <field id="right" unit="" />
+    <field id="left" unit="" />
+  </telemetry>
+  <safety>
+    <estop required="true" topic="/rrcf/car/estop" qos="2" />
+    <watchdog timeout_ms="500" action="halt" />
+    <speed_limit max_vx="1.0" max_wz="1.5" />
+  </safety>
+  <transport>
+    <endpoint role="operator_cmd" protocol="rrcf_mqtt" topic="/rrcf/car/cmd" broker="${MQTT_BROKER}" />
+    <endpoint role="telemetry" protocol="mqtt" topic="/rrcf/car/state" frequency_hz="10" />
+    <endpoint role="websocket" protocol="websocket" port="9090" />
+    <!-- TODO: replace placeholder broker/topic values before deployment. -->
+  </transport>
+  <extensions />
+</rrcf>
