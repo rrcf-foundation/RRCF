@@ -215,7 +215,8 @@ RRCF/
 ├── rrcf-adoption-guide.md                 when you need a physical file vs. RRCF vs. both
 ├── images/                                diagrams used in this README
 ├── reference-implementation/
-│   └── RCSP1_UniversalRobotControl.jsx    reference React/JSX operator UI (9 morphology categories)
+│   ├── RCSP1_UniversalRobotControl.jsx    controller-side reference: React/JSX operator UI (9 morphology categories)
+│   └── rrcf_ros2_bridge/                  robot-side reference: ROS 2 node for quick RRCF-transport compliance
 ├── converter-mjcf/                        MJCF → .rrcf draft generator (+ sample .rrcf output)
 │   ├── mjcf_to_rrcf.py                    CLI, uses the real MuJoCo compiler
 │   ├── mjcf_to_rrcf.html                  drag-and-drop browser version, no install
@@ -285,13 +286,29 @@ for the full converter documentation.
 
 ## Reference implementation
 
-[`reference-implementation/RCSP1_UniversalRobotControl.jsx`](reference-implementation/RCSP1_UniversalRobotControl.jsx)
-is a working React operator console covering all nine base morphology
-registries (wheeled, legged, loco-manipulation, wheeled humanoid, full
-humanoid, manipulator, aerial, marine surface, marine sub) — joystick axis
-mapping, mode/skill button legends, telemetry fields, and ROS 2 `Twist`
-translation, all driven from the category registry rather than per-robot
-code.
+Two reference implementations cover both sides of the conformance contract:
+
+- **Controller side** —
+  [`reference-implementation/RCSP1_UniversalRobotControl.jsx`](reference-implementation/RCSP1_UniversalRobotControl.jsx)
+  is a working React operator console covering all nine base morphology
+  registries (wheeled, legged, loco-manipulation, wheeled humanoid, full
+  humanoid, manipulator, aerial, marine surface, marine sub) — joystick axis
+  mapping, mode/skill button legends, telemetry fields, and ROS 2 `Twist`
+  translation, all driven from the category registry rather than per-robot
+  code.
+
+- **Robot side** —
+  [`reference-implementation/rrcf_ros2_bridge/`](reference-implementation/rrcf_ros2_bridge/)
+  is a minimal ROS 2 (rclpy) node that makes an *existing* ROS 2 robot
+  RRCF-transport compliant without touching its control stack: it loads the
+  robot's `.rrcf` file, subscribes to the declared MQTT `operator_cmd`
+  endpoint, translates commands to `geometry_msgs/Twist` on `/cmd_vel`, and
+  enforces the spec's mandatory watchdog, e-stop latching, and speed-limit
+  clamping (spec §11.1). Most ROS 2 robots already publish `Twist` and have
+  some e-stop path — this is the fastest route from "has a ROS 2 stack" to
+  "RRCF-compliant robot," short of a full native implementation. See its
+  own [README](reference-implementation/rrcf_ros2_bridge/README.md) for
+  install and configuration.
 
 ## Do you need a physical description file, RRCF, or both?
 

@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>rrcf_ros2_bridge</name>
+  <version>0.1.0</version>
+  <description>
+    Reference ROS 2 node that makes an existing ROS 2 robot RRCF-transport
+    compliant: MQTT-to-ROS 2 command translation, safety-limit clamping,
+    watchdog, e-stop propagation, and telemetry republish, driven by a
+    robot's .rrcf declaration.
+  </description>
+  <maintainer email="hello@rrcf.io">RRCF Foundation</maintainer>
+  <license>Apache-2.0</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>python3-paho-mqtt</exec_depend>
+
+  <test_depend>ament_copyright</test_depend>
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
