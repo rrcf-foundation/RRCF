@@ -1,0 +1,12 @@
+{
+  "registryVersion": "1.0",
+  "updatedAt": "2026-09-08T00:00:00Z",
+  "entries": [
+    {
+      "id": "org.rrcf.ros2.generic",
+      "adapterVersion": "0.1.0",
+      "status": "experimental",
+      "manifest": "./adapters/org.rrcf.ros2.generic.json"
+    }
+  ]
+}

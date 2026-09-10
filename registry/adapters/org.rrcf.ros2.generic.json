@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0",
+  "id": "org.rrcf.ros2.generic",
+  "displayName": "RRCF Generic ROS 2 Bridge",
+  "description": "Bootstrap source-reference Adapter mapping RRCF MQTT command envelopes to an existing ROS 2 mobile-base stack.",
+  "publisher": {
+    "id": "org.rrcf.foundation",
+    "name": "RRCF Foundation",
+    "url": "https://rrcf-foundation.github.io/"
+  },
+  "vendor": "Generic ROS 2",
+  "models": [],
+  "adapterVersion": "0.1.0",
+  "rrcfVersions": ["1.0"],
+  "categories": ["wheeled"],
+  "endpoint": {
+    "type": "ros2",
+    "name": "ROS 2 Humble/Jazzy",
+    "versionRange": "Humble or Jazzy",
+    "simulator": false
+  },
+  "sdkDependencies": [
+    {
+      "name": "rclpy",
+      "versionRange": "ROS 2 Humble or Jazzy",
+      "bundled": false,
+      "license": "Apache-2.0"
+    }
+  ],
+  "platforms": ["linux-amd64", "linux-arm64"],
+  "capabilities": {
+    "control": true,
+    "telemetry": false,
+    "skills": true,
+    "replay": false
+  },
+  "calibrationOwnership": "vendor_internal",
+  "distribution": {
+    "type": "source",
+    "sourceUrl": "https://github.com/rrcf-foundation/RRCF/tree/main/reference-implementation/rrcf_ros2_bridge"
+  },
+  "license": "Apache-2.0",
+  "sourceUrl": "https://github.com/rrcf-foundation/RRCF/tree/main/reference-implementation/rrcf_ros2_bridge",
+  "status": "experimental",
+  "publishedAt": "2026-09-08T00:00:00Z"
+}

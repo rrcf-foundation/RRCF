@@ -4,6 +4,16 @@ Two questions people run into almost immediately with RRCF: *do I even need
 this for my use case*, and *if I'm a robot/model provider, should I be
 publishing one*. This doc answers both.
 
+## Terminology used in this guide
+
+- **Adopter** — the vendor, integrator, simulator provider, platform, or project adopting RRCF.
+- **Adapter** — endpoint-specific bridge code translating between RRCA and a vendor SDK, ROS stack, simulator API, serial protocol, or cloud robot API.
+- **`.rrcf.adptr`** — the ZIP-compatible package containing an Adapter and its manifest. It accompanies the SDK or API; it is not the SDK itself.
+- **RRCA** — the RRCF Robot Control Agent, the generic runtime that loads a robot declaration and compatible Adapter.
+- **Registry** — the Foundation-governed catalog of Adapter compatibility and distribution metadata.
+
+An Adopter may publish several Adapters. The words are intentionally distinct.
+
 ---
 
 ## 1. When you need a physical file, RRCF, or both
@@ -86,3 +96,72 @@ support a non-dereferenceable mode (e.g. an internal identifier with no
 guarantee of public resolution, or simply omitting `path` and keeping only
 `format`) so vendors aren't forced to either expose the file or leave the
 reference field semantically dishonest.
+
+---
+
+## 3. Which artifacts should an Adopter publish?
+
+A complete endpoint integration has separate design-time and runtime artifacts:
+
+| Artifact | Purpose | Typical publisher | Public? |
+|---|---|---|---|
+| `robot.rrcf` | Declares model identity, controls, skills, telemetry, limits, and transports | Robot/model vendor | Usually public |
+| `vendor.robot.rrcf.adptr` | Maps the declaration to the vendor SDK/API or simulator | Vendor or integrator | Public, private, or Registry-linked |
+| Vendor SDK/API | Performs actual endpoint communication and vendor control behavior | Vendor | According to vendor license |
+| Deployment configuration | Selects unit identity, credentials, endpoints, and Adapter | Robot owner/operator | Private |
+| Physical file | Geometry, kinematics, and dynamics for simulation/planning | Vendor/model provider | Public or private |
+
+The `.rrcf` XML declaration and `.rrcf.adptr` package are intentionally different. The declaration is portable data consumed by controllers and RRCA. The package is executable Adapter code installed alongside its declared vendor SDK/API dependency.
+
+Recommended vendor publication flow:
+
+1. Publish and version `robot.rrcf` with the model's firmware/API compatibility.
+2. Implement one Adapter for the model or SDK family.
+3. Package it as `<publisher>.<vendor>.<model>.<version>.rrcf.adptr`.
+4. Declare SDK/API, model, applicable endpoint firmware, category, RRCF, RRCA, operating-system, architecture, and capability compatibility in `rrcf-adapter.json`.
+5. Test declaration-to-endpoint control, telemetry, skills, mismatch handling, watchdog, and safe-state behavior.
+6. Submit the Adapter to the Foundation Registry with package digest, license, provenance, and conformance evidence.
+7. Keep unit credentials and unit-specific calibration outside all public artifacts.
+
+Once that Adapter is available, controller and UI providers consume the model's `.rrcf` declaration without writing their own vendor SDK integration.
+
+### Calibration and tuning
+
+RRCF does not define a standardized calibration record. Calibration ownership stays with the endpoint implementation:
+
+- vendor firmware may load factory calibration;
+- a vendor SDK may run homing or load its own persisted file;
+- an Adapter may manage a private calibration or tuning file;
+- a simulator Adapter may derive or load deterministic gains and drive settings.
+
+RRCA validates that Adapter initialization succeeds, but it does not parse or modify calibration data. Public Registry entries describe calibration ownership only so an operator knows what prerequisite exists.
+
+---
+
+## 4. Publishing through the RRCF Adapter Registry
+
+The [RRCF Adapter Registry](registry/README.md) is the Foundation-governed index used to discover compatible Adapters. It is git-backed: additions, version changes, deprecations, and revocations are submitted as reviewed pull requests.
+
+A Registry record declares:
+
+- stable reverse-DNS Adapter ID;
+- publisher, vendor, and supported models;
+- RRCF compatibility, plus RRCA compatibility for installable packages;
+- morphology categories;
+- target SDK/API or simulator and its compatible versions;
+- supported platforms and capabilities;
+- calibration ownership metadata;
+- source or `.rrcf.adptr` distribution;
+- package SHA-256 and signature metadata when required by the Registry or deployment trust profile for installable releases;
+- license, status, and conformance evidence.
+
+Registry entries never contain device credentials, unit secrets, or private calibration files. Proprietary Adopters may use a private Registry implementing the same schemas.
+
+### Registry status levels
+
+- **experimental** — useful for evaluation; compatibility or behavior may change.
+- **verified** — reviewed with published conformance evidence.
+- **deprecated** — maintained only for migration.
+- **revoked** — must not be installed or activated.
+
+The current ROS 2 bridge is listed as an experimental source reference. A source reference is discoverable documentation, not an RRCA-installable package. Installable production entries distribute immutable `.rrcf.adptr` bytes with a published digest.
