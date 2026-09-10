@@ -1,0 +1,121 @@
+{
+  "title": "RRCF Adapter Registry Entry",
+  "description": "Publication, compatibility, and distribution metadata for an Adapter Registry entry.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "displayName", "publisher", "adapterVersion", "rrcfVersions", "categories", "endpoint", "platforms", "capabilities", "calibrationOwnership", "distribution", "license", "status"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)+$" },
+    "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+    "description": { "type": "string", "maxLength": 1000 },
+    "publisher": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "url": { "type": "string", "format": "uri", "pattern": "^https://" }
+      }
+    },
+    "vendor": { "type": "string", "minLength": 1 },
+    "models": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true, "default": [] },
+    "adapterVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$" },
+    "rrcfVersions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" } },
+    "rrcaVersions": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" } },
+    "categories": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
+    "endpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "name"],
+      "properties": {
+        "type": { "enum": ["vendor_sdk", "ros2", "simulator", "serial", "cloud_api", "raw_actuator", "other"] },
+        "name": { "type": "string", "minLength": 1 },
+        "versionRange": { "type": "string", "minLength": 1 },
+        "firmwareVersionRange": { "type": "string", "minLength": 1 },
+        "simulator": { "type": "boolean", "default": false }
+      }
+    },
+    "sdkDependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "versionRange", "bundled"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "versionRange": { "type": "string", "minLength": 1 },
+          "bundled": { "type": "boolean" },
+          "license": { "type": "string" }
+        }
+      },
+      "default": []
+    },
+    "platforms": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z0-9]+(?:[-_][a-z0-9]+)*$" } },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["control", "telemetry", "skills"],
+      "properties": {
+        "control": { "type": "boolean" },
+        "telemetry": { "type": "boolean" },
+        "skills": { "type": "boolean" },
+        "replay": { "type": "boolean", "default": false }
+      }
+    },
+    "calibrationOwnership": { "enum": ["vendor_internal", "adapter_internal", "runtime_auto", "not_applicable"] },
+    "distribution": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "sourceUrl"],
+          "properties": {
+            "type": { "const": "source" },
+            "sourceUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+            "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "fileName", "url", "sha256"],
+          "properties": {
+            "type": { "const": "package" },
+            "fileName": { "type": "string", "pattern": "^[A-Za-z0-9._-]+\\.rrcf\\.adptr$" },
+            "url": { "type": "string", "format": "uri", "pattern": "^https://" },
+            "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+            "signatureUrl": { "type": "string", "format": "uri", "pattern": "^https://" }
+          }
+        }
+      ]
+    },
+    "license": { "type": "string", "minLength": 1 },
+    "sourceUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "status": { "enum": ["experimental", "verified", "deprecated", "revoked"] },
+    "publishedAt": { "type": "string", "format": "date-time" },
+    "conformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reportUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+        "testedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "distribution": {
+            "properties": { "type": { "const": "package" } },
+            "required": ["type"]
+          }
+        },
+        "required": ["distribution"]
+      },
+      "then": { "required": ["rrcaVersions"] }
+    }
+  ]
+}

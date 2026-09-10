@@ -18,6 +18,8 @@
 [Specification](RRCF_v02_RFC_Specification.pdf) ·
 [Live Controller Demo](https://rrcf-foundation.github.io/demo/index.html) ·
 [Converter](https://rrcf-foundation.github.io/tools/converter.html) ·
+[RRCA Architecture](architecture/rrca.md) ·
+[Adapter Registry](registry/) ·
 [ROS 2 Bridge](reference-implementation/rrcf_ros2_bridge/) ·
 [Adoption Guide](rrcf-adoption-guide.md)
 
@@ -29,6 +31,7 @@
 
 - [What is RRCF?](#what-is-rrcf)
 - [Why RRCF exists](#why-rrcf-exists)
+- [RRCA, Adopters, and Adapters](#rrca-adopters-and-adapters)
 - [The five pillars](#the-five-pillars)
 - [Morphology categories](#morphology-categories)
 - [A minimal `.rrcf` example](#a-minimal-rrcf-example)
@@ -57,8 +60,9 @@ panels, custom controls, safety limits, and transport endpoints.
 
 Any RRCF-compliant controller — a web dashboard, a fleet console, or a
 Vision-Language-Action (VLA) model — reads the `.rrcf` file and renders (or
-generates) the correct operator interface, **without writing per-robot
-integration code**.
+generates) the correct operator interface. Once an endpoint Adapter has been
+published for a robot model, SDK family, or simulator, controllers need no
+model-specific integration code.
 
 <div align="center">
 <img src="images/RRCF_Robot_Remote_Control_Format_short.jpg" alt="RRCF overview: manipulator, humanoid, mobile robot, dashboard" width="80%" />
@@ -94,6 +98,33 @@ the shared control and safety contract.
 <div align="center">
 <img src="images/RRCF_Robot_Remote_Control_Format_is_a_fo.jpg" alt="RRCF is a foundational open standard for connecting and remotely controlling real, simulated robots and Physical AI" width="90%" />
 </div>
+
+## RRCA, Adopters, and Adapters
+
+RRCF separates the portable operator contract from endpoint-specific integration:
+
+- An **Adopter** is a vendor, integrator, simulator provider, platform, or project implementing RRCF.
+- An **Adapter** is the bridge from normalized RRCF controls and telemetry to a vendor SDK, ROS stack, simulator API, serial protocol, or cloud robot API.
+- A **`.rrcf.adptr`** file is the ZIP-compatible package containing an Adapter and its manifest. It is installed in addition to the vendor SDK; it does not replace the SDK.
+- **RRCA (RRCF Robot Control Agent)** is the generic runtime that loads `.rrcf`, discovers and verifies the matching Adapter, validates commands, and routes telemetry.
+- The **RRCF Adapter Registry** is the Foundation-governed, machine-readable catalog of compatible Adapter releases.
+
+```text
+Controller / dashboard / VLA
+             | RRCF command + telemetry envelopes
+             v
+RRCA core + category module
+             | RRCA Adapter contract
+             v
+vendor.robot.rrcf.adptr
+             | vendor SDK / simulator API / ROS / serial
+             v
+Robot or simulator
+```
+
+Endpoint integration is therefore **Adapter once per model or SDK family; generic controllers thereafter**. Calibration, homing, simulator gains, and other endpoint-specific tuning remain inside vendor firmware, the SDK, or the Adapter. RRCA does not define or parse a calibration record.
+
+Read the [RRCA architecture](architecture/rrca.md), [`.rrcf.adptr` package format](architecture/adapter-package.md), and [RRCF Adapter Registry guidance](registry/README.md).
 
 ## The five pillars
 
@@ -275,7 +306,14 @@ RRCF/
 ├── README.md                              this file
 ├── LICENSE                                Apache 2.0
 ├── RRCF_v02_RFC_Specification.pdf/.docx   full RFC-style spec (source of truth)
-├── rrcf-adoption-guide.md                 when you need a physical file vs. RRCF vs. both
+├── rrcf-adoption-guide.md                 adopter guidance and publication paths
+├── architecture/
+│   ├── rrca.md                            RRCA runtime and Adapter boundary
+│   └── adapter-package.md                 .rrcf.adptr package format
+├── registry/
+│   ├── index.json                         Foundation Adapter catalog
+│   ├── schema/                            machine-readable manifest schema
+│   └── adapters/                          reviewed Adapter entries
 ├── images/                                diagrams used in this README
 ├── reference-implementation/
 │   ├── RCSP1_UniversalRobotControl.jsx    controller-side reference: React/JSX operator UI (9 morphology categories)
@@ -361,18 +399,17 @@ Two reference implementations cover both sides of the conformance contract:
   code. **[Try it live in your browser](https://rrcf-foundation.github.io/demo/index.html)**
   — no install, switches between all nine categories.
 
-- **Robot side** —
+- **Robot-side Adapter reference** —
   [`reference-implementation/rrcf_ros2_bridge/`](reference-implementation/rrcf_ros2_bridge/)
-  is a minimal ROS 2 (rclpy) node that makes an *existing* ROS 2 robot
-  RRCF-transport compliant without touching its control stack: it loads the
-  robot's `.rrcf` file, subscribes to the declared MQTT `operator_cmd`
-  endpoint, translates commands to `geometry_msgs/Twist` on `/cmd_vel`, and
-  enforces the spec's mandatory watchdog, e-stop latching, and speed-limit
-  clamping (spec §11.1). Most ROS 2 robots already publish `Twist` and have
-  some e-stop path — this is the fastest route from "has a ROS 2 stack" to
-  "RRCF-compliant robot," short of a full native implementation. See its
-  own [README](reference-implementation/rrcf_ros2_bridge/README.md) for
-  install and configuration.
+  is the first bootstrap Adapter and the precursor to an RRCA-loadable
+  `.rrcf.adptr` package. It makes an *existing* ROS 2 robot RRCF-transport
+  compliant without replacing its control stack: it loads the robot's
+  `.rrcf` file, subscribes to the declared MQTT `operator_cmd` endpoint,
+  translates commands to `geometry_msgs/Twist` on `/cmd_vel`, and enforces
+  the watchdog, e-stop latching, and speed-limit clamping. It is listed in
+  the Registry as an experimental source reference until a packaged RRCA
+  Adapter release and conformance report are available. See its own
+  [README](reference-implementation/rrcf_ros2_bridge/README.md) for setup.
 
 ## Do you need a physical description file, RRCF, or both?
 
@@ -397,12 +434,11 @@ RRCF complements, and does not compete with, existing robotics standards:
 
 ## Conformance — what it takes to interoperate
 
-RRCF splits conformance into two sides of the same contract: the **robot**
-and the **controller** — where "controller" means *any* operator surface: a
-human on a touchscreen, a fleet console commanding a robot on behalf of
-another robot, or a VLA model generating skill calls. Meet your side and you
-interoperate with every other compliant implementation, without pairwise
-integration work per robot or per operator type.
+RRCF conformance covers the **controller**, **RRCA runtime**, and **endpoint
+Adapter/robot** boundaries. A human UI, fleet console, another robot, or VLA
+model sends the same declared contract; RRCA and a compatible Adapter perform
+the endpoint-specific integration once rather than requiring every controller
+to integrate every SDK.
 
 **A compliant robot MUST:**
 - Expose a valid `<rrcf version="1.0">` block, standalone or embedded in its physical description file.
@@ -420,6 +456,13 @@ integration work per robot or per operator type.
 - Include an `estop` field and a `Twist` sub-object in **every** transmitted command.
 - Normalize all input axes to `[-1.0, 1.0]` in wire-format output.
 - Reject any command exceeding the robot's declared safety limits — applies equally to human input and VLA-generated commands.
+
+**A conforming RRCA and Adapter deployment MUST:**
+- Load and validate the `.rrcf` declaration before accepting commands.
+- Verify Adapter identity, compatibility, and package integrity before activation.
+- Map required controls, skills, telemetry, and target safe-state behavior.
+- Reject declaration/endpoint mismatches instead of silently claiming support.
+- Keep deployment credentials and unit-specific calibration outside public declarations and Registry records.
 
 This split is what makes a human operator, a robot commanding another robot,
 and a VLA agent fungible from the robot's point of view: all three speak the
