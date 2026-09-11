@@ -113,13 +113,57 @@ A complete endpoint integration has separate design-time and runtime artifacts:
 
 The `.rrcf` XML declaration and `.rrcf.adptr` package are intentionally different. The declaration is portable data consumed by controllers and RRCA. The package is executable Adapter code installed alongside its declared vendor SDK/API dependency.
 
+### What the declaration owes a controller: the self-description contract
+
+Before publishing `robot.rrcf`, understand the one rule that makes it worth
+consuming. Every telemetry field must carry its own type, unit, and range:
+
+```xml
+<field id="battery" type="number" unit="%" min="0" max="100"
+       warn_below="20" label="Battery" widget="gauge"/>
+```
+
+> A generic controller, dashboard, or VLA MUST be able to render and interpret
+> every declared field using only the declaration — no per-robot code, no
+> out-of-band documentation, no vendor lookup table.
+
+This is what a controller vendor is actually buying when they support RRCF. If
+consuming your declaration still requires knowing that your `soc` means
+battery percent, you have published a file, not an interface.
+
+Two independent requirements apply, and a declaration must satisfy both:
+
+- your robot's **category profile** decides *which* fields must exist —
+  `wheeled` owes `speed`, `aerial` owes `altitude` and `rssi`, `manipulator`
+  owes neither a locomotion axis nor a battery reading;
+- the **self-description contract** decides *how* every field you declare must
+  be described, mandatory or optional.
+
+Check both before submitting anything:
+
+```bash
+pip install -r conformance/requirements.txt
+python -m rrcf_conformance profiles --category legged   # what do I owe?
+python -m rrcf_conformance lint robot.rrcf              # did I deliver it?
+```
+
+Then check that the robot actually does what the file claims, against a real
+capture. A declaration is a promise; this is where the promise is tested:
+
+```bash
+python -m rrcf_conformance check-session robot.rrcf session.jsonl
+```
+
+Full rules, and what each layer does *not* prove:
+[conformance/README.md](conformance/README.md).
+
 Recommended vendor publication flow:
 
-1. Publish and version `robot.rrcf` with the model's firmware/API compatibility.
+1. Publish and version `robot.rrcf` with the model's firmware/API compatibility, once `rrcf-conformance lint` passes with no errors.
 2. Implement one Adapter for the model or SDK family.
 3. Package it as `<publisher>.<vendor>.<model>.<version>.rrcf.adptr`.
 4. Declare SDK/API, model, applicable endpoint firmware, category, RRCF, RRCA, operating-system, architecture, and capability compatibility in `rrcf-adapter.json`.
-5. Test declaration-to-endpoint control, telemetry, skills, mismatch handling, watchdog, and safe-state behavior.
+5. Test declaration-to-endpoint control, telemetry, skills, mismatch handling, watchdog, and safe-state behavior — capture a session and run `rrcf-conformance check-session` against it.
 6. Submit the Adapter to the Foundation Registry with package digest, license, provenance, and conformance evidence.
 7. Keep unit credentials and unit-specific calibration outside all public artifacts.
 

@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rrcf-conformance"
+version = "0.1.0"
+description = "Conformance tooling for the RRCF operator interface declaration standard"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "RRCF Foundation" }]
+keywords = ["rrcf", "robotics", "teleoperation", "conformance", "telemetry"]
+dependencies = ["jsonschema>=4.18"]
+
+[project.urls]
+Homepage = "https://rrcf-foundation.github.io"
+Source = "https://github.com/rrcf-foundation/RRCF"
+
+[project.scripts]
+rrcf-conformance = "rrcf_conformance.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.setuptools]
+packages = ["rrcf_conformance"]
+
+[tool.setuptools.package-data]
+rrcf_conformance = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
