@@ -1,0 +1,79 @@
+name: Conformance
+
+# Layer 1 enforcement, wired into review. A declaration or Registry entry
+# cannot reach main without passing the same checks a vendor runs locally.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: pip install -r conformance/requirements.txt
+
+      - name: Schema is generated from the profiles, not hand-edited
+        run: python conformance/tools/gen_schema.py --check
+
+      - name: Tests
+        run: python -m pytest conformance/tests -q
+        working-directory: ${{ github.workspace }}
+
+      - name: Lint every declaration in the repository
+        run: |
+          python -m rrcf_conformance lint \
+            examples/unitree-go2-z1.rrcf \
+            examples/ur5-manipulator.rrcf
+        working-directory: conformance
+
+      - name: Negative fixture must still be rejected
+        run: |
+          if python -m rrcf_conformance lint examples/invalid-aerial.rrcf; then
+            echo "::error::invalid-aerial.rrcf was accepted — layer 1 has regressed"
+            exit 1
+          fi
+          echo "correctly rejected"
+        working-directory: conformance
+
+      - name: Registry entries validate against the manifest schema
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          from jsonschema import Draft202012Validator
+
+          schema = json.loads(
+              pathlib.Path("registry/schema/adapter-manifest.schema.json").read_text()
+          )
+          validator = Draft202012Validator(schema)
+
+          failed = False
+          for entry in sorted(pathlib.Path("registry/adapters").glob("*.json")):
+              errors = sorted(
+                  validator.iter_errors(json.loads(entry.read_text())),
+                  key=lambda e: list(e.absolute_path),
+              )
+              if errors:
+                  failed = True
+                  print(f"FAIL {entry}")
+                  for error in errors:
+                      location = "/".join(str(p) for p in error.absolute_path) or "<root>"
+                      print(f"      {location}: {error.message}")
+              else:
+                  print(f"OK   {entry}")
+
+          raise SystemExit(1 if failed else 0)
+          PY

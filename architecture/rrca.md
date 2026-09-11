@@ -56,12 +56,14 @@ An RRCA implementation MUST:
 4. Verify the Adapter manifest, package digest, and compatibility before executing package code.
 5. Initialize the Adapter with the declaration and deployment configuration.
 6. Validate command type, normalized ranges, declared skill IDs, freshness, and safety envelope before dispatch.
-7. Route Adapter telemetry using the field IDs and units declared by `.rrcf`.
+7. Route Adapter telemetry using the field IDs, types, units, and ranges declared by `.rrcf`, and reject values that fall outside a declared range rather than forwarding them unlabelled.
 8. Coordinate watchdog and target-defined safe-state behavior with the Adapter.
 9. Report explicit ready, degraded, rejected, fault, and disconnected states.
 10. Keep credentials and unit-specific secrets outside public `.rrcf` declarations and Registry entries.
 
-An RRCA implementation MUST NOT assume that all categories use mobile-base `Twist` semantics. Category modules define their mandatory control and telemetry vocabulary.
+An RRCA implementation MUST NOT assume that all categories use mobile-base `Twist` semantics. Category modules define their mandatory control and telemetry vocabulary, and that vocabulary is machine-readable in [`conformance/profiles/category-profiles.json`](../conformance/profiles/category-profiles.json): `twist` is required exactly when a category declares locomotion axes, which excludes `manipulator` and `custom`.
+
+Every field RRCA routes MUST satisfy the [self-description contract](../conformance/README.md) — a declared type, unit, and range — because that is what lets a controller RRCA has never met render the field without model-specific code.
 
 ## Adapter responsibilities
 

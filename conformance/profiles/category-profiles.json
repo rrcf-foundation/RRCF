@@ -1,0 +1,199 @@
+{
+  "$comment": "SOURCE OF TRUTH for RRCF per-category mandatory fields and the self-description contract. conformance/schema/rrcf-declaration.schema.json is GENERATED from this file by conformance/tools/gen_schema.py — edit this file, then regenerate. Field IDs and units follow the vocabulary already used by the reference controller (reference-implementation/RCSP1_UniversalRobotControl.jsx) so that profiles and reference implementation cannot drift apart.",
+  "profilesVersion": "1.0",
+  "rrcfVersion": "1.0",
+  "updatedAt": "2026-09-11T00:00:00Z",
+
+  "fieldTypes": ["number", "integer", "boolean", "enum", "string", "vector3"],
+  "widgets": ["gauge", "plot", "badge", "indicator", "text", "vector"],
+
+  "selfDescriptionContract": {
+    "statement": "A generic controller, dashboard, or VLA MUST be able to render and interpret every declared telemetry field using only the declaration — no per-robot code, no out-of-band documentation, no vendor lookup table. A field that cannot be rendered from its own declaration is non-conformant, even if the field is present on the wire.",
+    "rationale": "This is what makes one controller work against any robot. The moment a consumer needs to know that this vendor's 'soc' means battery percent, the operator layer has stopped being portable and RRCF has no reason to exist.",
+    "requiredAttributes": {
+      "always": ["id", "type"],
+      "byType": {
+        "number": ["unit", "min", "max"],
+        "integer": ["unit", "min", "max"],
+        "vector3": ["unit", "min", "max"],
+        "enum": ["values"],
+        "boolean": [],
+        "string": []
+      }
+    },
+    "optionalAttributes": [
+      "label",
+      "widget",
+      "warn_below",
+      "warn_above",
+      "frequency_hz",
+      "description"
+    ],
+    "rules": [
+      "unit MUST be a non-empty string for number, integer, and vector3 fields. Dimensionless ratios use '1'; percentages use '%'.",
+      "min MUST be strictly less than max.",
+      "warn_below and warn_above, when present, MUST fall inside [min, max].",
+      "enum fields MUST enumerate every value they can emit, in the values attribute, space-separated.",
+      "A field ID MUST be unique within a declaration.",
+      "A declared field MUST be published on the wire. Declaring a field the robot never emits is a conformance failure, checked at runtime, not at declaration time.",
+      "frequency_hz on a field overrides the telemetry endpoint rate for that field. Either the field or the endpoint MUST establish a rate."
+    ]
+  },
+
+  "universal": {
+    "$comment": "Applies to every category, including custom.",
+    "minTelemetryHz": 1,
+    "safety": {
+      "requiredElements": ["estop", "watchdog"],
+      "notes": "estop MUST declare required='true' and a topic. watchdog MUST declare timeout_ms and action."
+    },
+    "command": {
+      "requiredFields": ["rrcf", "category", "type", "estop", "ts"],
+      "notes": "twist is additionally required for any category declaring locomotion axes — see categories[].requiresTwist. It is NOT universal: a fixed manipulator has no mobile base, and RRCA MUST NOT assume mobile-base Twist semantics for every category (architecture/rrca.md)."
+    },
+    "telemetry": [
+      {
+        "id": "estop_state",
+        "type": "boolean",
+        "purpose": "The robot's own latched e-stop state. Distinct from the operator's last commanded estop value — an operator must be able to see that the robot actually stopped, not merely that a stop was sent."
+      },
+      {
+        "id": "health",
+        "type": "enum",
+        "values": ["ready", "degraded", "rejected", "fault", "estop", "disconnected"],
+        "purpose": "The explicit runtime state RRCA is already required to report (architecture/rrca.md, RRCA core responsibility 9). Standardized value set, because the state machine is defined by RRCF itself rather than by the vendor."
+      }
+    ]
+  },
+
+  "categories": {
+    "wheeled": {
+      "label": "Wheeled / Tracked",
+      "locomotionAxes": ["vx", "wz"],
+      "requiresTwist": true,
+      "telemetry": [
+        { "id": "battery", "type": "number", "unit": "%" },
+        { "id": "speed", "type": "number", "unit": "m/s" },
+        { "id": "temp", "type": "number", "unit": "degC" }
+      ]
+    },
+    "legged": {
+      "label": "Legged (Quadruped / Hexapod)",
+      "locomotionAxes": ["vx", "vy", "wz"],
+      "requiresTwist": true,
+      "telemetry": [
+        { "id": "battery", "type": "number", "unit": "%" },
+        { "id": "speed", "type": "number", "unit": "m/s" },
+        { "id": "temp", "type": "number", "unit": "degC" }
+      ]
+    },
+    "loco_manip": {
+      "label": "Loco-Manipulation",
+      "locomotionAxes": ["vx", "wz"],
+      "requiresTwist": true,
+      "telemetry": [
+        { "id": "battery", "type": "number", "unit": "%" },
+        { "id": "speed", "type": "number", "unit": "m/s" },
+        { "id": "temp", "type": "number", "unit": "degC" },
+        { "id": "ee_pos", "type": "vector3", "unit": "m" }
+      ]
+    },
+    "wheeled_humanoid": {
+      "label": "Wheeled Humanoid",
+      "locomotionAxes": ["vx", "wz"],
+      "requiresTwist": true,
+      "telemetry": [
+        { "id": "battery", "type": "number", "unit": "%" },
+        { "id": "speed", "type": "number", "unit": "m/s" },
+        { "id": "temp", "type": "number", "unit": "degC" },
+        { "id": "ee_pos", "type": "vector3", "unit": "m" }
+      ]
+    },
+    "full_humanoid": {
+      "label": "Full Humanoid (Bipedal)",
+      "locomotionAxes": ["vx", "vy", "wz"],
+      "requiresTwist": true,
+      "telemetry": [
+        { "id": "battery", "type": "number", "unit": "%" },
+        { "id": "speed", "type": "number", "unit": "m/s" },
+        { "id": "temp", "type": "number", "unit": "degC" },
+        { "id": "balance", "type": "enum" },
+        { "id": "ee_pos", "type": "vector3", "unit": "m" }
+      ]
+    },
+    "manipulator": {
+      "label": "Fixed Manipulator (Arm)",
+      "locomotionAxes": [],
+      "requiresTwist": false,
+      "$comment": "No mobile base: no locomotion axes, no mandatory twist, and no mandatory battery — a fixed arm is typically mains powered.",
+      "telemetry": [
+        { "id": "temp", "type": "number", "unit": "degC" },
+        { "id": "ee_pos", "type": "vector3", "unit": "m" },
+        { "id": "joint_torque", "type": "number", "unit": "Nm" }
+      ]
+    },
+    "aerial": {
+      "label": "Aerial (Drone / VTOL)",
+      "locomotionAxes": ["vx", "vy", "vz", "wz"],
+      "requiresTwist": true,
+      "telemetry": [
+        { "id": "battery", "type": "number", "unit": "%" },
+        { "id": "altitude", "type": "number", "unit": "m" },
+        { "id": "speed", "type": "number", "unit": "m/s" },
+        { "id": "gps", "type": "enum" },
+        { "id": "rssi", "type": "number", "unit": "dBm" }
+      ]
+    },
+    "marine_surface": {
+      "label": "Marine Surface (USV)",
+      "locomotionAxes": ["vx", "wz"],
+      "requiresTwist": true,
+      "telemetry": [
+        { "id": "battery", "type": "number", "unit": "%" },
+        { "id": "heading", "type": "number", "unit": "deg" },
+        { "id": "speed", "type": "number", "unit": "m/s" },
+        { "id": "gps", "type": "enum" }
+      ]
+    },
+    "marine_sub": {
+      "label": "Marine Underwater (ROV / AUV)",
+      "locomotionAxes": ["vx", "vy", "vz", "wz"],
+      "requiresTwist": true,
+      "telemetry": [
+        { "id": "battery", "type": "number", "unit": "%" },
+        { "id": "depth", "type": "number", "unit": "m" },
+        { "id": "heading", "type": "number", "unit": "deg" },
+        { "id": "temp", "type": "number", "unit": "degC" },
+        { "id": "pressure", "type": "number", "unit": "bar" }
+      ]
+    },
+    "industrial_vehicle": {
+      "label": "Industrial Vehicle",
+      "locomotionAxes": ["vx", "wz"],
+      "requiresTwist": true,
+      "$comment": "Typically engine powered rather than battery powered, so battery is not mandatory.",
+      "telemetry": [
+        { "id": "speed", "type": "number", "unit": "m/s" },
+        { "id": "heading", "type": "number", "unit": "deg" },
+        { "id": "temp", "type": "number", "unit": "degC" }
+      ]
+    },
+    "agri_vehicle": {
+      "label": "Agricultural Vehicle",
+      "locomotionAxes": ["vx", "wz"],
+      "requiresTwist": true,
+      "telemetry": [
+        { "id": "speed", "type": "number", "unit": "m/s" },
+        { "id": "heading", "type": "number", "unit": "deg" },
+        { "id": "temp", "type": "number", "unit": "degC" }
+      ]
+    },
+    "custom": {
+      "label": "Custom (vendor-defined)",
+      "locomotionAxes": [],
+      "requiresTwist": false,
+      "$comment": "An open category cannot have a mandatory morphology vocabulary imposed on it. It still owes the universal set and the full self-description contract on every field it does declare — that is what keeps custom robots renderable by a generic controller.",
+      "telemetry": []
+    }
+  }
+}

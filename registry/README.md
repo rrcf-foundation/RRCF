@@ -34,6 +34,9 @@ Registry matching is not proof that a physical unit is safe or correctly configu
 
 - `experimental` — early integration; interface or behavior may change.
 - `verified` — Registry review and published conformance evidence completed.
+  Evidence means a `rrcf-conformance check-session` report over a real capture
+  from the target endpoint, not only a passing declaration: a declaration that
+  lints clean proves the file is complete, not that the robot honours it.
 - `deprecated` — supported only for migration; a replacement should be used.
 - `revoked` — must not be installed or activated.
 
@@ -65,6 +68,7 @@ Package versions follow semantic versioning. A package update changes `adapterVe
 Registry reviewers check:
 
 - schema validity;
+- that the referenced model declaration passes `rrcf-conformance lint` with no errors — see [conformance](../conformance/README.md);
 - namespace and publisher authorization;
 - model, SDK/API, RRCF, RRCA, category, and platform compatibility;
 - HTTPS distribution and exact `.rrcf.adptr` naming for package entries;

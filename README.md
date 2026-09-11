@@ -20,6 +20,7 @@
 [Converter](https://rrcf-foundation.github.io/tools/converter.html) ·
 [RRCA Architecture](architecture/rrca.md) ·
 [Adapter Registry](registry/) ·
+[Conformance](conformance/) ·
 [ROS 2 Bridge](reference-implementation/rrcf_ros2_bridge/) ·
 [Adoption Guide](rrcf-adoption-guide.md)
 
@@ -36,7 +37,7 @@
 - [Morphology categories](#morphology-categories)
 - [A minimal `.rrcf` example](#a-minimal-rrcf-example)
 - [Wire format](#wire-format)
-- [Also a standard for telemetry, dashboards, and data stores](#also-a-standard-for-telemetry-dashboards-and-data-stores)
+- [Telemetry is not a by-product — it is half the contract](#telemetry-is-not-a-by-product--it-is-half-the-contract)
 - [Recording & playback — rosbag/MCAP + Foxglove](#recording--playback--rosbagmcap--foxglove)
 - [VLA integration — RAG for robots](#vla-integration--rag-for-robots)
 - [Repository layout](#repository-layout)
@@ -45,6 +46,7 @@
 - [Do you need a physical file, RRCF, or both?](#do-you-need-a-physical-description-file-rrcf-or-both)
 - [Relationship to other standards](#relationship-to-other-standards)
 - [Conformance — what it takes to interoperate](#conformance--what-it-takes-to-interoperate)
+- [Conformance tooling — the three enforcement layers](conformance/README.md)
 - [Specification](#specification)
 - [Versioning & governance](#versioning--governance)
 - [Contributing](#contributing)
@@ -130,14 +132,15 @@ Read the [RRCA architecture](architecture/rrca.md), [`.rrcf.adptr` package forma
 
 1. **Remote Control Standard** — one unified UI for any robot, any morphology, covering both **live control** and **replay** of a previously recorded command stream (same wire format, same skill/mode vocabulary, so a recorded session can be played back through the identical panel it was captured from)
 2. **Fleet Management Standard** — complements VDA 5050 / Open-RMF, doesn't compete
-3. **Collection & Integration Standard** — universal wire format for any external system: data pipelines, digital twins, ERP/IoT, dashboards and time-series stores (see [below](#also-a-standard-for-telemetry-dashboards-and-data-stores)), and **imitation learning** — every operator session, human or teleoperated demonstration, is already a `(state, action)` trajectory in one consistent schema across every robot, ready to train on without a per-robot data-wrangling step
+3. **Collection & Integration Standard** — universal wire format for any external system: data pipelines, digital twins, ERP/IoT, dashboards and time-series stores (see [below](#telemetry-is-not-a-by-product--it-is-half-the-contract)), and **imitation learning** — every operator session, human or teleoperated demonstration, is already a `(state, action)` trajectory in one consistent schema across every robot, ready to train on without a per-robot data-wrangling step
 4. **Safety Standard** — e-stop, watchdog, geofence, speed limits standardized across all robots
 5. **Choreography Standard** — synchronized multi-robot missions via `.rrcm` files
 
 ## Morphology categories
 
-RRCF-1.0 defines twelve canonical robot morphology categories, plus an open
-`custom` category for anything not yet enumerated:
+RRCF-1.0 defines twelve canonical robot morphology categories. Eleven are
+specific morphologies; the twelfth, `custom`, is deliberately open for
+anything not yet enumerated:
 
 `wheeled` · `legged` · `loco_manip` · `wheeled_humanoid` · `full_humanoid` ·
 `manipulator` · `aerial` · `marine_surface` · `marine_sub` ·
@@ -145,6 +148,13 @@ RRCF-1.0 defines twelve canonical robot morphology categories, plus an open
 
 Each robot declares exactly one primary category, with additional
 capabilities layered on as `<attachments>` (arms, grippers, sensors, tools).
+
+A category is not just a label. It determines which control axes and which
+telemetry fields the robot is *required* to declare — an aerial vehicle owes
+`altitude`, a fixed manipulator owes neither a locomotion axis nor a battery
+reading. That matrix is machine-readable in
+[`conformance/profiles/category-profiles.json`](conformance/profiles/category-profiles.json)
+and enforced by [`rrcf-conformance lint`](conformance/README.md).
 
 ## A minimal `.rrcf` example
 
@@ -221,38 +231,86 @@ produces the same normalized command message on the wire:
 }
 ```
 
-Axes are always normalized to `[-1.0, 1.0]`, `estop` is always present, and a
-ROS 2 `geometry_msgs/Twist`-shaped sub-object is always included — so any
-consumer, from a browser UI to a ROS 2 node, can read it directly.
+Axes are always normalized to `[-1.0, 1.0]`, and `rrcf`, `category`, `type`,
+`estop`, and `ts` are present on every message regardless of morphology.
 
-## Also a standard for telemetry, dashboards, and data stores
+A ROS 2 `geometry_msgs/Twist`-shaped sub-object is included whenever the
+robot's category declares locomotion axes — which is every category except
+`manipulator` and `custom` — so any consumer, from a browser UI to a ROS 2
+node, can read it directly. It is deliberately *not* universal: a bolted-down
+arm has no mobile base, and RRCA
+[must not assume mobile-base `Twist` semantics for every category](architecture/rrca.md).
+Which categories require it is declared in
+[`conformance/profiles/category-profiles.json`](conformance/profiles/category-profiles.json)
+and checked against real traffic by
+[`rrcf-conformance check-session`](conformance/README.md).
 
-RRCF is a control standard first, but the same property that makes it a
-control standard — one consistent field schema (`lx/ly/rx/ry`, `estop`,
-`twist`, `mode`, `skill`, `ts`, plus whatever's declared under
-`<telemetry>`) across every robot and every morphology category — makes it
-equally a **telemetry and time-series standard**, for free, with no separate
-schema to design:
+## Telemetry is not a by-product — it is half the contract
 
-- **Dashboards** — a fleet dashboard built against the RRCF schema renders
-  the same battery/speed/temp/custom-field widgets for a wheeled robot, a
-  drone, and a humanoid, because the field names and shapes don't change
-  across categories. No per-robot dashboard config.
-- **Time-series stores** — writing RRCF telemetry straight into InfluxDB,
-  TimescaleDB, Prometheus, or any time-series database gives you one
-  consistent measurement schema across your entire fleet, not one schema per
-  vendor. Queries, alerts, and retention policies are written once and work
-  for every robot that speaks RRCF.
-- **Data streams** — the same `operator_cmd`/`telemetry` MQTT (or WebSocket)
-  endpoints declared in `<transport>` are just as usable as a generic
-  pub/sub data stream for any consumer that wants live robot state, not only
-  for the control loop itself.
+Nobody drives a car by watching only the road. You watch the speedometer, the
+fuel gauge, the temperature light. Take the dashboard out and you don't have a
+car that drives slightly worse — you have a car nobody should be driving,
+because the driver can no longer tell whether the last input did what they
+intended.
 
-This is the same "one schema, many robots" property described in the
-[VLA/RAG section](#vla-integration--rag-for-robots) below and in the
-[rosbag/MCAP + Foxglove use case](#recording--playback--rosbagmcap--foxglove)
-— control, dashboards, storage, and recording all reuse one declared field
-schema instead of four separate ones.
+Commanding a robot is the same. `estop:true` is not a stop; it is a *request*
+to stop. Only `estop_state` coming back tells the operator the robot actually
+stopped. A command stream without a state stream is open-loop, and open-loop
+teleoperation of a physical machine is not a reduced feature set — it is an
+unsafe one.
+
+So RRCF does not treat telemetry as a bonus that falls out of the control
+format. It declares both halves in one file, and a declaration that omits a
+`telemetry` endpoint is **rejected** — you cannot safely command what you
+cannot observe:
+
+```console
+$ rrcf-conformance lint no-telemetry-endpoint.rrcf
+FAIL  no-telemetry-endpoint.rrcf
+      ERROR   schema [transport/endpoints]: A declaration with no telemetry
+      endpoint is not safely commandable: an operator cannot be asked to
+      command a robot whose current state they cannot see.
+```
+
+### The self-description contract
+
+The dashboard analogy has a second half. A speedometer is useful because it is
+labelled — the numbers mean km/h, the redline is marked, you know what you are
+looking at without a manual. RRCF requires the same of every telemetry field:
+
+```xml
+<field id="battery" type="number" unit="%" min="0" max="100"
+       warn_below="20" label="Battery" widget="gauge"/>
+```
+
+> A generic controller, dashboard, or VLA MUST be able to render and interpret
+> every declared field using only the declaration — no per-robot code, no
+> out-of-band documentation, no vendor lookup table.
+
+A controller that has never heard of this robot can now draw the gauge, scale
+it correctly, and turn it amber at 20%. The moment a consumer has to know that
+*this* vendor's `soc` means battery percent, the operator layer has stopped
+being portable. Full rules, and how they are enforced:
+[**conformance/README.md**](conformance/README.md).
+
+### What that buys, downstream
+
+Because command and state share one declared, self-describing schema, the
+things normally built per-vendor become build-once:
+
+- **Dashboards** — a fleet dashboard renders the same battery/speed/temp
+  widgets for a wheeled robot, a drone, and a humanoid, because the field
+  names, units, and ranges are declared rather than assumed. No per-robot
+  dashboard config.
+- **Time-series stores** — writing RRCF telemetry into InfluxDB, TimescaleDB,
+  or Prometheus gives one consistent measurement schema across the fleet, not
+  one per vendor. Queries, alerts, and retention policies are written once.
+- **Data streams** — the `operator_cmd`/`telemetry` endpoints declared in
+  `<transport>` work as a generic pub/sub stream for any consumer wanting live
+  robot state, not only the control loop.
+- **Imitation learning** — every operator session is already a
+  `(state, action)` trajectory in one schema, because the state half was
+  mandatory all along. See the [five pillars](#the-five-pillars).
 
 ## Recording & playback — rosbag/MCAP + Foxglove
 
@@ -310,13 +368,18 @@ RRCF/
 ├── architecture/
 │   ├── rrca.md                            RRCA runtime and Adapter boundary
 │   └── adapter-package.md                 .rrcf.adptr package format
+├── conformance/                           enforcement: makes "MUST" checkable
+│   ├── profiles/category-profiles.json    mandatory fields per category (source of truth)
+│   ├── schema/                            generated JSON Schema for declarations
+│   ├── rrcf_conformance/                  `rrcf-conformance` lint + check-session
+│   └── examples/                          conformant and deliberately invalid fixtures
 ├── registry/
 │   ├── index.json                         Foundation Adapter catalog
 │   ├── schema/                            machine-readable manifest schema
 │   └── adapters/                          reviewed Adapter entries
 ├── images/                                diagrams used in this README
 ├── reference-implementation/
-│   ├── RCSP1_UniversalRobotControl.jsx    controller-side reference: React/JSX operator UI (9 morphology categories)
+│   ├── RCSP1_UniversalRobotControl.jsx    controller-side reference: React/JSX operator UI (9 of 12 categories)
 │   └── rrcf_ros2_bridge/                  robot-side reference: ROS 2 node for quick RRCF-transport compliance
 ├── converter-mjcf/                        MJCF → .rrcf draft generator (+ sample .rrcf output)
 │   ├── mjcf_to_rrcf.py                    CLI, uses the real MuJoCo compiler
@@ -391,13 +454,15 @@ Two reference implementations cover both sides of the conformance contract:
 
 - **Controller side** —
   [`reference-implementation/RCSP1_UniversalRobotControl.jsx`](reference-implementation/RCSP1_UniversalRobotControl.jsx)
-  is a working React operator console covering all nine base morphology
-  registries (wheeled, legged, loco-manipulation, wheeled humanoid, full
-  humanoid, manipulator, aerial, marine surface, marine sub) — joystick axis
-  mapping, mode/skill button legends, telemetry fields, and ROS 2 `Twist`
-  translation, all driven from the category registry rather than per-robot
-  code. **[Try it live in your browser](https://rrcf-foundation.github.io/demo/index.html)**
-  — no install, switches between all nine categories.
+  is a working React operator console covering nine of the twelve categories
+  (wheeled, legged, loco-manipulation, wheeled humanoid, full humanoid,
+  manipulator, aerial, marine surface, marine sub) — joystick axis mapping,
+  mode/skill button legends, telemetry fields, and ROS 2 `Twist` translation,
+  all driven from the category registry rather than per-robot code.
+  `industrial_vehicle`, `agri_vehicle`, and `custom` are specified but not yet
+  implemented in the reference console.
+  **[Try it live in your browser](https://rrcf-foundation.github.io/demo/index.html)**
+  — no install, switches between all nine.
 
 - **Robot-side Adapter reference** —
   [`reference-implementation/rrcf_ros2_bridge/`](reference-implementation/rrcf_ros2_bridge/)
@@ -445,7 +510,9 @@ to integrate every SDK.
 - Accept RRCF wire-format JSON on at least one declared transport endpoint.
 - Halt **all** motion immediately on `estop:true` — no exceptions.
 - Halt if no valid command arrives within the declared watchdog timeout.
-- Publish telemetry on every declared field at ≥1 Hz.
+- Declare every telemetry field its category requires, and publish every declared field at ≥1 Hz.
+- Self-describe every declared field — type, unit, range — so a controller that has never seen the model can render it.
+- Publish `estop_state` and `health`, so an operator can see the robot's actual state rather than only their own last command.
 - Implement e-stop in hardware, independent of the network link (spec §13).
 
 **A compliant controller MUST:**
@@ -453,7 +520,7 @@ to integrate every SDK.
 - Render the core panel (joysticks, e-stop, speed, telemetry) for **every** category, without per-robot code.
 - Render category/skill/attachment-specific panels purely from the declaration.
 - Support `touch_web` as the baseline input modality.
-- Include an `estop` field and a `Twist` sub-object in **every** transmitted command.
+- Include `rrcf`, `category`, `type`, `estop`, and `ts` in **every** transmitted command, and a `Twist` sub-object whenever the robot's category declares locomotion axes.
 - Normalize all input axes to `[-1.0, 1.0]` in wire-format output.
 - Reject any command exceeding the robot's declared safety limits — applies equally to human input and VLA-generated commands.
 
@@ -470,6 +537,32 @@ same wire format and are held to the same safety-limit contract, so the
 robot never needs to know which kind of operator it's talking to.
 
 Full requirements, including transport security and rate-limiting: spec §11–§13.
+
+### How any of this is actually enforced
+
+A MUST in a specification is unenforceable on its own. RRCF enforcement has
+three layers, and they check genuinely different things:
+
+| Layer | Checks | Command |
+|---|---|---|
+| **1. Declaration** | The `.rrcf` declares everything its category requires, and every declared field self-describes | `rrcf-conformance lint robot.rrcf` |
+| **2. Runtime** | The robot actually publishes what it declared, at the declared rate, inside the declared range | `rrcf-conformance check-session robot.rrcf session.jsonl` |
+| **3. Certification** | The right to claim RRCF compliance in the market | Foundation review — **not yet operational** |
+
+Layer 1 cannot tell a robot that publishes `estop_state` from one that merely
+promises to; that is precisely what layer 2 is for. Neither layer stops a
+vendor who simply never runs them — that gap closes only at layer 3, the same
+way USB-IF and the Wi-Fi Alliance close it, by controlling the compliance mark
+rather than the code.
+
+```bash
+pip install -r conformance/requirements.txt
+python -m rrcf_conformance lint conformance/examples/unitree-go2-z1.rrcf
+python -m rrcf_conformance profiles --category aerial
+```
+
+Details, per-category field matrix, and what each layer does **not** prove:
+[**conformance/README.md**](conformance/README.md).
 
 ## Specification
 
