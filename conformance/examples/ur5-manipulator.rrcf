@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Conformant `manipulator` declaration.
+
+  This example exists to prove the profile mechanism is genuinely
+  category-aware rather than mobile-base chauvinism:
+
+    - no <locomotion> block, because a bolted-down arm has no base;
+    - no mandatory `twist` on the wire, for the same reason;
+    - no mandatory `battery`, because a fixed arm is mains powered.
+
+  The universal set (estop_state, health) is still mandatory. Safety does not
+  get a morphology exemption.
+-->
+<rrcf version="1.0" xmlns="https://rrcf.io/schema/1.0">
+  <meta>
+    <name>Universal Robots UR5e</name>
+    <vendor>Universal Robots</vendor>
+    <model>UR5e</model>
+    <physical_ref format="urdf" path="ur5e.urdf"/>
+  </meta>
+
+  <primary category="manipulator">
+    <modes>joint cartesian teach replay</modes>
+  </primary>
+
+  <attachments>
+    <attach type="gripper" id="gripper_2f85" mount="tool0" dof="1">
+      <modes>open close</modes>
+    </attach>
+  </attachments>
+
+  <skills>
+    <skill id="home" label="Home" standard="true" cmd='{"mode":"home"}'/>
+    <skill id="grip" label="Grip" standard="true" cmd='{"gripper":"close"}'/>
+    <skill id="release" label="Release" standard="true" cmd='{"gripper":"open"}'/>
+  </skills>
+
+  <telemetry>
+    <field id="estop_state" type="boolean" label="E-Stop" widget="indicator"/>
+    <field id="health" type="enum"
+           values="ready degraded rejected fault estop disconnected"
+           label="Health" widget="badge"/>
+
+    <field id="temp" type="number" unit="degC" min="-10" max="90"
+           warn_above="70" label="Joint Temperature" widget="gauge"/>
+    <field id="ee_pos" type="vector3" unit="m" min="-0.95" max="0.95"
+           label="End Effector" widget="vector"/>
+    <field id="joint_torque" type="number" unit="Nm" min="-150" max="150"
+           warn_above="120" label="Peak Joint Torque" widget="plot"/>
+
+    <field id="payload" type="number" unit="kg" min="0" max="5"
+           warn_above="4.5" label="Payload" widget="gauge"/>
+  </telemetry>
+
+  <safety>
+    <estop required="true" topic="/rrcf/ur5e/estop" qos="2"/>
+    <watchdog timeout_ms="200" action="safe_state"/>
+  </safety>
+
+  <transport>
+    <endpoint role="operator_cmd" protocol="rrcf_mqtt" topic="/rrcf/ur5e/cmd"/>
+    <endpoint role="telemetry" protocol="mqtt" topic="/rrcf/ur5e/state" frequency_hz="20"/>
+  </transport>
+</rrcf>

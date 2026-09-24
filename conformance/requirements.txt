@@ -1,0 +1,7 @@
+# Runtime dependency for RRCF conformance checking.
+# jsonschema 4.18 is the first release with full JSON Schema 2020-12 support,
+# which the generated declaration schema relies on (if/then, contains, $defs).
+jsonschema>=4.18
+
+# Development only.
+pytest>=7

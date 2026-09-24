@@ -1,0 +1,2217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rrcf-foundation.github.io/schema/rrcf-declaration.schema.json",
+  "title": "RRCF declaration (canonical JSON projection)",
+  "description": "GENERATED FILE — do not edit by hand. Regenerate with `python conformance/tools/gen_schema.py` after editing conformance/profiles/category-profiles.json.\n\nValidates the canonical JSON projection of a .rrcf declaration, produced by conformance/rrcf_conformance/projection.py. A .rrcf file is XML; this schema deliberately targets the projection so that the same rules can be checked by any JSON Schema implementation.",
+  "x-rrcf-profiles-version": "1.0",
+  "x-rrcf-version": "1.0",
+  "type": "object",
+  "required": [
+    "version",
+    "primary",
+    "telemetry",
+    "safety",
+    "transport"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "const": "1.0"
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "vendor": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "physical_ref": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "enum": [
+                "urdf",
+                "mjcf",
+                "sdf",
+                "usd",
+                "xacro"
+              ]
+            },
+            "path": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "primary": {
+      "type": "object",
+      "required": [
+        "category"
+      ],
+      "properties": {
+        "category": {
+          "enum": [
+            "aerial",
+            "agri_vehicle",
+            "custom",
+            "full_humanoid",
+            "industrial_vehicle",
+            "legged",
+            "loco_manip",
+            "manipulator",
+            "marine_sub",
+            "marine_surface",
+            "wheeled",
+            "wheeled_humanoid"
+          ]
+        },
+        "locomotion": {
+          "type": "object",
+          "properties": {
+            "axes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "limits": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "modes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "standard": {
+            "type": "boolean"
+          },
+          "cmd": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "telemetry": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/telemetryField"
+      },
+      "minItems": 2
+    },
+    "safety": {
+      "type": "object",
+      "required": [
+        "estop",
+        "watchdog"
+      ],
+      "properties": {
+        "estop": {
+          "type": "object",
+          "required": [
+            "required",
+            "topic"
+          ],
+          "properties": {
+            "required": {
+              "const": true
+            },
+            "topic": {
+              "type": "string",
+              "minLength": 1
+            },
+            "qos": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 2
+            }
+          }
+        },
+        "watchdog": {
+          "type": "object",
+          "required": [
+            "timeout_ms",
+            "action"
+          ],
+          "properties": {
+            "timeout_ms": {
+              "type": "integer",
+              "exclusiveMinimum": 0
+            },
+            "action": {
+              "enum": [
+                "halt",
+                "safe_state",
+                "land",
+                "surface",
+                "hold"
+              ]
+            }
+          }
+        },
+        "speed_limit": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "transport": {
+      "type": "object",
+      "required": [
+        "endpoints"
+      ],
+      "properties": {
+        "endpoints": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "role",
+              "protocol"
+            ],
+            "properties": {
+              "role": {
+                "enum": [
+                  "operator_cmd",
+                  "telemetry",
+                  "estop",
+                  "video"
+                ]
+              },
+              "protocol": {
+                "type": "string",
+                "minLength": 1
+              },
+              "topic": {
+                "type": "string"
+              },
+              "broker": {
+                "type": "string"
+              },
+              "frequency_hz": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            }
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "const": "operator_cmd"
+                  }
+                },
+                "required": [
+                  "role"
+                ]
+              },
+              "$comment": "A declaration with no command endpoint is not controllable."
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "const": "telemetry"
+                  }
+                },
+                "required": [
+                  "role"
+                ]
+              },
+              "$comment": "A declaration with no telemetry endpoint is not safely commandable: an operator cannot be asked to command a robot whose current state they cannot see."
+            }
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "telemetryField": {
+      "type": "object",
+      "title": "Self-describing telemetry field",
+      "description": "A generic controller, dashboard, or VLA MUST be able to render and interpret every declared telemetry field using only the declaration — no per-robot code, no out-of-band documentation, no vendor lookup table. A field that cannot be rendered from its own declaration is non-conformant, even if the field is present on the wire.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Stable field identifier, unique within the declaration."
+        },
+        "type": {
+          "enum": [
+            "number",
+            "integer",
+            "boolean",
+            "enum",
+            "string",
+            "vector3"
+          ]
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Unit symbol. '1' for dimensionless ratios, '%' for percentages."
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "Every value an enum field can emit."
+        },
+        "label": {
+          "type": "string"
+        },
+        "widget": {
+          "enum": [
+            "gauge",
+            "plot",
+            "badge",
+            "indicator",
+            "text",
+            "vector"
+          ]
+        },
+        "warn_below": {
+          "type": "number"
+        },
+        "warn_above": {
+          "type": "number"
+        },
+        "frequency_hz": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "number"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "unit",
+              "min",
+              "max"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "integer"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "unit",
+              "min",
+              "max"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "vector3"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "unit",
+              "min",
+              "max"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "enum"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "values"
+            ]
+          }
+        }
+      ],
+      "$comment": "min < max, warn thresholds inside [min, max], and field-ID uniqueness are asserted by the linter — JSON Schema cannot express cross-property comparisons. See conformance/rrcf_conformance/lint.py."
+    }
+  },
+  "allOf": [
+    {
+      "title": "universal telemetry: estop_state",
+      "properties": {
+        "telemetry": {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "const": "estop_state"
+              },
+              "type": {
+                "const": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "type"
+            ]
+          }
+        }
+      },
+      "required": [
+        "telemetry"
+      ]
+    },
+    {
+      "title": "universal telemetry: health",
+      "properties": {
+        "telemetry": {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "const": "health"
+              },
+              "type": {
+                "const": "enum"
+              },
+              "values": {
+                "type": "array",
+                "allOf": [
+                  {
+                    "contains": {
+                      "const": "ready"
+                    }
+                  },
+                  {
+                    "contains": {
+                      "const": "degraded"
+                    }
+                  },
+                  {
+                    "contains": {
+                      "const": "rejected"
+                    }
+                  },
+                  {
+                    "contains": {
+                      "const": "fault"
+                    }
+                  },
+                  {
+                    "contains": {
+                      "const": "estop"
+                    }
+                  },
+                  {
+                    "contains": {
+                      "const": "disconnected"
+                    }
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "values"
+            ]
+          }
+        }
+      },
+      "required": [
+        "telemetry"
+      ]
+    },
+    {
+      "title": "category profile: aerial",
+      "if": {
+        "properties": {
+          "primary": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "const": "aerial"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "primary"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "battery"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "%"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "altitude"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "m"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "speed"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "m/s"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "gps"
+                    },
+                    "type": {
+                      "const": "enum"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "rssi"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "dBm"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "primary": {
+                "properties": {
+                  "locomotion": {
+                    "type": "object",
+                    "properties": {
+                      "axes": {
+                        "type": "array",
+                        "allOf": [
+                          {
+                            "contains": {
+                              "const": "vx"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "vy"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "vz"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "wz"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "axes"
+                    ]
+                  }
+                },
+                "required": [
+                  "locomotion"
+                ]
+              }
+            }
+          }
+        ],
+        "required": [
+          "telemetry"
+        ]
+      }
+    },
+    {
+      "title": "category profile: agri_vehicle",
+      "if": {
+        "properties": {
+          "primary": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "const": "agri_vehicle"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "primary"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "speed"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "m/s"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "heading"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "deg"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "temp"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "degC"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "primary": {
+                "properties": {
+                  "locomotion": {
+                    "type": "object",
+                    "properties": {
+                      "axes": {
+                        "type": "array",
+                        "allOf": [
+                          {
+                            "contains": {
+                              "const": "vx"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "wz"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "axes"
+                    ]
+                  }
+                },
+                "required": [
+                  "locomotion"
+                ]
+              }
+            }
+          }
+        ],
+        "required": [
+          "telemetry"
+        ]
+      }
+    },
+    {
+      "title": "category profile: full_humanoid",
+      "if": {
+        "properties": {
+          "primary": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "const": "full_humanoid"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "primary"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "battery"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "%"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "speed"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "m/s"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "temp"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "degC"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "balance"
+                    },
+                    "type": {
+                      "const": "enum"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "ee_pos"
+                    },
+                    "type": {
+                      "const": "vector3"
+                    },
+                    "unit": {
+                      "const": "m"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "primary": {
+                "properties": {
+                  "locomotion": {
+                    "type": "object",
+                    "properties": {
+                      "axes": {
+                        "type": "array",
+                        "allOf": [
+                          {
+                            "contains": {
+                              "const": "vx"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "vy"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "wz"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "axes"
+                    ]
+                  }
+                },
+                "required": [
+                  "locomotion"
+                ]
+              }
+            }
+          }
+        ],
+        "required": [
+          "telemetry"
+        ]
+      }
+    },
+    {
+      "title": "category profile: industrial_vehicle",
+      "if": {
+        "properties": {
+          "primary": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "const": "industrial_vehicle"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "primary"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "speed"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "m/s"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "heading"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "deg"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "temp"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "degC"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "primary": {
+                "properties": {
+                  "locomotion": {
+                    "type": "object",
+                    "properties": {
+                      "axes": {
+                        "type": "array",
+                        "allOf": [
+                          {
+                            "contains": {
+                              "const": "vx"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "wz"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "axes"
+                    ]
+                  }
+                },
+                "required": [
+                  "locomotion"
+                ]
+              }
+            }
+          }
+        ],
+        "required": [
+          "telemetry"
+        ]
+      }
+    },
+    {
+      "title": "category profile: legged",
+      "if": {
+        "properties": {
+          "primary": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "const": "legged"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "primary"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "battery"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "%"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "speed"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "m/s"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "temp"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "degC"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "primary": {
+                "properties": {
+                  "locomotion": {
+                    "type": "object",
+                    "properties": {
+                      "axes": {
+                        "type": "array",
+                        "allOf": [
+                          {
+                            "contains": {
+                              "const": "vx"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "vy"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "wz"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "axes"
+                    ]
+                  }
+                },
+                "required": [
+                  "locomotion"
+                ]
+              }
+            }
+          }
+        ],
+        "required": [
+          "telemetry"
+        ]
+      }
+    },
+    {
+      "title": "category profile: loco_manip",
+      "if": {
+        "properties": {
+          "primary": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "const": "loco_manip"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "primary"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "battery"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "%"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "speed"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "m/s"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "temp"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "degC"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "ee_pos"
+                    },
+                    "type": {
+                      "const": "vector3"
+                    },
+                    "unit": {
+                      "const": "m"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "primary": {
+                "properties": {
+                  "locomotion": {
+                    "type": "object",
+                    "properties": {
+                      "axes": {
+                        "type": "array",
+                        "allOf": [
+                          {
+                            "contains": {
+                              "const": "vx"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "wz"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "axes"
+                    ]
+                  }
+                },
+                "required": [
+                  "locomotion"
+                ]
+              }
+            }
+          }
+        ],
+        "required": [
+          "telemetry"
+        ]
+      }
+    },
+    {
+      "title": "category profile: manipulator",
+      "if": {
+        "properties": {
+          "primary": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "const": "manipulator"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "primary"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "temp"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "degC"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "ee_pos"
+                    },
+                    "type": {
+                      "const": "vector3"
+                    },
+                    "unit": {
+                      "const": "m"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "joint_torque"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "Nm"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          }
+        ],
+        "required": [
+          "telemetry"
+        ]
+      }
+    },
+    {
+      "title": "category profile: marine_sub",
+      "if": {
+        "properties": {
+          "primary": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "const": "marine_sub"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "primary"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "battery"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "%"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "depth"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "m"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "heading"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "deg"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "temp"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "degC"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "pressure"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "bar"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "primary": {
+                "properties": {
+                  "locomotion": {
+                    "type": "object",
+                    "properties": {
+                      "axes": {
+                        "type": "array",
+                        "allOf": [
+                          {
+                            "contains": {
+                              "const": "vx"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "vy"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "vz"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "wz"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "axes"
+                    ]
+                  }
+                },
+                "required": [
+                  "locomotion"
+                ]
+              }
+            }
+          }
+        ],
+        "required": [
+          "telemetry"
+        ]
+      }
+    },
+    {
+      "title": "category profile: marine_surface",
+      "if": {
+        "properties": {
+          "primary": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "const": "marine_surface"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "primary"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "battery"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "%"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "heading"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "deg"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "speed"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "m/s"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "gps"
+                    },
+                    "type": {
+                      "const": "enum"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "primary": {
+                "properties": {
+                  "locomotion": {
+                    "type": "object",
+                    "properties": {
+                      "axes": {
+                        "type": "array",
+                        "allOf": [
+                          {
+                            "contains": {
+                              "const": "vx"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "wz"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "axes"
+                    ]
+                  }
+                },
+                "required": [
+                  "locomotion"
+                ]
+              }
+            }
+          }
+        ],
+        "required": [
+          "telemetry"
+        ]
+      }
+    },
+    {
+      "title": "category profile: wheeled",
+      "if": {
+        "properties": {
+          "primary": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "const": "wheeled"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "primary"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "battery"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "%"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "speed"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "m/s"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "temp"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "degC"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "primary": {
+                "properties": {
+                  "locomotion": {
+                    "type": "object",
+                    "properties": {
+                      "axes": {
+                        "type": "array",
+                        "allOf": [
+                          {
+                            "contains": {
+                              "const": "vx"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "wz"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "axes"
+                    ]
+                  }
+                },
+                "required": [
+                  "locomotion"
+                ]
+              }
+            }
+          }
+        ],
+        "required": [
+          "telemetry"
+        ]
+      }
+    },
+    {
+      "title": "category profile: wheeled_humanoid",
+      "if": {
+        "properties": {
+          "primary": {
+            "type": "object",
+            "properties": {
+              "category": {
+                "const": "wheeled_humanoid"
+              }
+            },
+            "required": [
+              "category"
+            ]
+          }
+        },
+        "required": [
+          "primary"
+        ]
+      },
+      "then": {
+        "allOf": [
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "battery"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "%"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "speed"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "m/s"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "temp"
+                    },
+                    "type": {
+                      "const": "number"
+                    },
+                    "unit": {
+                      "const": "degC"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "telemetry": {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "const": "ee_pos"
+                    },
+                    "type": {
+                      "const": "vector3"
+                    },
+                    "unit": {
+                      "const": "m"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "unit"
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "properties": {
+              "primary": {
+                "properties": {
+                  "locomotion": {
+                    "type": "object",
+                    "properties": {
+                      "axes": {
+                        "type": "array",
+                        "allOf": [
+                          {
+                            "contains": {
+                              "const": "vx"
+                            }
+                          },
+                          {
+                            "contains": {
+                              "const": "wz"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "axes"
+                    ]
+                  }
+                },
+                "required": [
+                  "locomotion"
+                ]
+              }
+            }
+          }
+        ],
+        "required": [
+          "telemetry"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Conformant `legged` declaration. Passes `rrcf-conformance lint` with no
+  errors and no warnings.
+
+  Note what every <field> carries: type, unit, and range. That is the
+  self-description contract — a controller that has never heard of a Go2 can
+  render this HUD correctly from the declaration alone.
+-->
+<rrcf version="1.0" xmlns="https://rrcf.io/schema/1.0">
+  <meta>
+    <name>Unitree Go2 + Z1 Arm</name>
+    <vendor>Unitree Robotics</vendor>
+    <model>Go2-Z1</model>
+    <physical_ref format="urdf" path="go2_z1.urdf"/>
+  </meta>
+
+  <primary category="legged">
+    <locomotion axes="vx vy wz" max_vx="1.5" max_vy="0.5" max_wz="2.0"/>
+    <modes>stand trot bound crawl prone</modes>
+    <body_pose pitch="true" roll="true" height="true"/>
+  </primary>
+
+  <skills>
+    <skill id="sit" label="Sit" standard="true" cmd='{"mode":"sit"}'/>
+    <skill id="stand" label="Stand" standard="true" cmd='{"mode":"stand"}'/>
+    <skill id="heel_stretch" label="Yoga Pose" cmd='{"mode":"custom_01"}'/>
+  </skills>
+
+  <telemetry>
+    <!-- Universal: required of every category, regardless of morphology. -->
+    <field id="estop_state" type="boolean" label="E-Stop" widget="indicator"
+           description="Robot's own latched e-stop state, not the last command sent."/>
+    <field id="health" type="enum"
+           values="ready degraded rejected fault estop disconnected"
+           label="Health" widget="badge"/>
+
+    <!-- Category profile: legged. -->
+    <field id="battery" type="number" unit="%" min="0" max="100"
+           warn_below="20" label="Battery" widget="gauge"/>
+    <field id="speed" type="number" unit="m/s" min="0" max="1.5"
+           label="Speed" widget="plot"/>
+    <field id="temp" type="number" unit="degC" min="-20" max="100"
+           warn_above="55" label="Temperature" widget="gauge"/>
+
+    <!-- Vendor extras. Optional, but still fully self-describing. -->
+    <field id="voltage" type="number" unit="V" min="0" max="60"
+           warn_below="42" label="Bus Voltage" widget="gauge"/>
+    <field id="ee_pos" type="vector3" unit="m" min="-1.2" max="1.2"
+           label="Arm End Effector" widget="vector"/>
+  </telemetry>
+
+  <safety>
+    <estop required="true" topic="/rrcf/go2/estop" qos="2"/>
+    <watchdog timeout_ms="500" action="halt"/>
+    <speed_limit max_vx="1.5" max_vy="0.5" max_wz="2.0"/>
+  </safety>
+
+  <transport>
+    <endpoint role="operator_cmd" protocol="rrcf_mqtt" topic="/rrcf/go2/cmd"/>
+    <endpoint role="telemetry" protocol="mqtt" topic="/rrcf/go2/state" frequency_hz="10"/>
+    <endpoint role="estop" protocol="mqtt" topic="/rrcf/go2/estop"/>
+  </transport>
+
+  <extensions/>
+</rrcf>

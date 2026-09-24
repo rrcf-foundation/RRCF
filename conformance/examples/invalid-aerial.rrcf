@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  DELIBERATELY NON-CONFORMANT `aerial` declaration, used as a negative
+  fixture by the test suite. Every defect below is one a real vendor
+  submission plausibly makes, and every one is caught at layer 1:
+
+   1. missing universal field `health`
+   2. missing category-mandatory `altitude` and `rssi`
+   3. `battery` declared in "V" where the profile pins "%"
+   4. `battery` has no min/max — the self-description contract requires a
+      range on numeric fields, so a gauge cannot be scaled
+   5. `speed` warn_above=80 sits outside its own declared range [0, 25]
+   6. `gps` is an enum that never enumerates its values
+   7. `temp` is declared twice with different units
+   8. locomotion omits the mandatory `vz` axis for an aerial vehicle
+   9. safety speed_limit max_vx=15 exceeds locomotion max_vx=12
+  10. no watchdog element at all
+  11. telemetry endpoint runs at 0.5 Hz, below the 1 Hz floor
+-->
+<rrcf version="1.0" xmlns="https://rrcf.io/schema/1.0">
+  <meta>
+    <name>Example Quadrotor</name>
+    <vendor>Example Vendor</vendor>
+    <model>QX-1</model>
+  </meta>
+
+  <primary category="aerial">
+    <locomotion axes="vx vy wz" max_vx="12.0" max_vy="12.0" max_wz="2.5"/>
+    <modes>stabilize altitude loiter auto rtl</modes>
+  </primary>
+
+  <skills>
+    <skill id="takeoff" cmd='{"mode":"takeoff"}'/>
+    <skill id="land" label="Land" cmd='{"mode":"land"}'/>
+  </skills>
+
+  <telemetry>
+    <field id="estop_state" type="boolean"/>
+    <field id="battery" type="number" unit="V"/>
+    <field id="speed" type="number" unit="m/s" min="0" max="25" warn_above="80"/>
+    <field id="gps" type="enum"/>
+    <field id="temp" type="number" unit="degC" min="-20" max="80"/>
+    <field id="temp" type="number" unit="F" min="-4" max="176"/>
+  </telemetry>
+
+  <safety>
+    <estop required="true" topic="/rrcf/qx1/estop"/>
+    <speed_limit max_vx="15.0" max_vy="12.0" max_wz="2.5"/>
+  </safety>
+
+  <transport>
+    <endpoint role="operator_cmd" protocol="rrcf_mqtt" topic="/rrcf/qx1/cmd"/>
+    <endpoint role="telemetry" protocol="mqtt" topic="/rrcf/qx1/state" frequency_hz="0.5"/>
+  </transport>
+</rrcf>

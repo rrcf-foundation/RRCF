@@ -1,0 +1,9 @@
+{"rrcf": "1.0", "type": "cmd", "category": "legged", "ts": 1719000000000, "lx": 1.8, "estop": false}
+{"rrcf": "1.0", "type": "state", "category": "legged", "ts": 1719000000000, "health": "OKAY", "battery": 105.0, "speed": 0.4, "temp": "warm", "voltage": 47.0, "soc": 0.81}
+{"rrcf": "1.0", "type": "state", "category": "legged", "ts": 1719000000500, "health": "OKAY", "battery": 105.0, "speed": 0.4, "temp": "warm", "voltage": 47.0, "soc": 0.81}
+{"rrcf": "1.0", "type": "state", "category": "legged", "ts": 1719000001000, "health": "OKAY", "battery": 105.0, "speed": 0.4, "temp": "warm", "voltage": 47.0, "soc": 0.81}
+{"rrcf": "1.0", "type": "cmd", "category": "legged", "ts": 1719000001200, "lx": 1.8, "estop": false}
+{"rrcf": "1.0", "type": "state", "category": "legged", "ts": 1719000001500, "health": "OKAY", "battery": 105.0, "speed": 0.4, "temp": "warm", "voltage": 47.0, "soc": 0.81}
+{"rrcf": "1.0", "type": "state", "category": "legged", "ts": 1719000002000, "health": "OKAY", "battery": 105.0, "speed": 0.4, "temp": "warm", "voltage": 47.0, "soc": 0.81}
+{"rrcf": "1.0", "type": "cmd", "category": "legged", "ts": 1719000002400, "lx": 1.8, "estop": false}
+{"rrcf": "1.0", "type": "cmd", "category": "legged", "ts": 1719000003600, "lx": 1.8, "estop": false}
