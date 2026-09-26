@@ -1,10 +1,14 @@
-<div align="center">
-
-<img src="images/rrcf_FULL_TRANSPARENT.png" alt="RRCF — Robot Remote Control Format" width="100%" />
+<table><tr>
+<td><img src="images/rrcf_FULL_TRANSPARENT.png" alt="RRCF — Robot Remote Control Format" width="120" /></td>
+<td>
 
 # RRCF — Robot Remote Control Format
 
 **The Operator Interface Declaration Standard for Physical AI**
+</td>
+</tr></table>
+
+<div align="center">
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Spec Version](https://img.shields.io/badge/spec-v0.2%20draft-orange.svg)](RRCF_v02_RFC_Specification.pdf)
