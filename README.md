@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="images/RRCF_Robot_Remote_Control_Format_full.jpg" alt="RRCF — Robot Remote Control Format" width="100%" />
+<img src="images/rrcf_FULL_TRANSPARENT.png" alt="RRCF — Robot Remote Control Format" width="100%" />
 
 # RRCF — Robot Remote Control Format
 
@@ -16,6 +16,7 @@
 
 [Website](https://rrcf-foundation.github.io) ·
 [Specification](RRCF_v02_RFC_Specification.pdf) ·
+[RRCF SPEC. V04](RRCF_v04_RFC_Specification.pdf) ·
 [Live Controller Demo](https://rrcf-foundation.github.io/demo/index.html) ·
 [Converter](https://rrcf-foundation.github.io/tools/converter.html) ·
 [RRCA Architecture](architecture/rrca.md) ·
