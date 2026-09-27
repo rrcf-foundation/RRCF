@@ -1,6 +1,6 @@
-<table border="0"><tr>
-<td><img src="images/rrcf_FULL_TRANSPARENT.png" alt="RRCF — Robot Remote Control Format" width="120" /></td>
-<td>
+<table border="0" cellspacing="0" cellpadding="0"><tr>
+<td style="border:none;padding:0 16px 0 0;vertical-align:middle;"><img src="images/rrcf_FULL_TRANSPARENT.png" alt="RRCF — Robot Remote Control Format" width="120" style="border:none;display:block;" /></td>
+<td style="border:none;vertical-align:middle;">
 
 # RRCF — Robot Remote Control Format
 
