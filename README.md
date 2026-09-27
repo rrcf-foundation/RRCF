@@ -1,12 +1,8 @@
-<table border="0" cellspacing="0" cellpadding="0"><tr>
-<td style="border:none;padding:0 16px 0 0;vertical-align:middle;"><img src="images/rrcf_FULL_TRANSPARENT.png" alt="RRCF — Robot Remote Control Format" width="120" style="border:none;display:block;" /></td>
-<td style="border:none;vertical-align:middle;">
+<img src="images/rrcf_FULL_TRANSPARENT.png" alt="RRCF — Robot Remote Control Format" width="120" />
 
 # RRCF — Robot Remote Control Format
 
 **The Operator Interface Declaration Standard for Physical AI**
-</td>
-</tr></table>
 
 <div align="center">
 
