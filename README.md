@@ -1,4 +1,4 @@
-<table><tr>
+<table border="0"><tr>
 <td><img src="images/rrcf_FULL_TRANSPARENT.png" alt="RRCF — Robot Remote Control Format" width="120" /></td>
 <td>
 
