@@ -7,16 +7,16 @@
 <div align="center">
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Spec Version](https://img.shields.io/badge/spec-v0.2%20draft-orange.svg)](RRCF_v02_RFC_Specification.pdf)
-[![Status](https://img.shields.io/badge/status-RFC%20draft-yellow.svg)](RRCF_v02_RFC_Specification.pdf)
+[![Spec Version](https://img.shields.io/badge/spec-v0.4%20draft-orange.svg)](spec/RRCF_v04_RFC_Specification.md)
+[![Status](https://img.shields.io/badge/status-RFC%20draft-yellow.svg)](spec/RRCF_v04_RFC_Specification.md)
 [![Website](https://img.shields.io/badge/website-rrcf--foundation.github.io-5fc9c0.svg)](https://rrcf-foundation.github.io)
 
 *One `.rrcf` file. Any robot. Any operator — human, another robot, or an AI model.*
-*One consistent wire format. Any dashboard, any time-series store, any replay tool.*
+*One declared contract for both command and telemetry — the operator layer for Physical AI.*
 
 [Website](https://rrcf-foundation.github.io) ·
-[Specification](RRCF_v02_RFC_Specification.pdf) ·
-[RRCF SPEC. V04](RRCF_v04_RFC_Specification.pdf) ·
+[Specification (Markdown)](spec/RRCF_v04_RFC_Specification.md) ·
+[Specification (PDF)](RRCF_v04_RFC_Specification.pdf) ·
 [Live Controller Demo](https://rrcf-foundation.github.io/demo/index.html) ·
 [Converter](https://rrcf-foundation.github.io/tools/converter.html) ·
 [RRCA Architecture](architecture/rrca.md) ·
@@ -39,6 +39,9 @@
 - [A minimal `.rrcf` example](#a-minimal-rrcf-example)
 - [Wire format](#wire-format)
 - [Telemetry is not a by-product — it is half the contract](#telemetry-is-not-a-by-product--it-is-half-the-contract)
+- [Vehicle control and authority tiers](#vehicle-control-and-authority-tiers)
+- [Data replay — one converter per source, not per robot](#data-replay--one-converter-per-source-not-per-robot)
+- [Environment, composition, and identity](#environment-composition-and-identity)
 - [Recording & playback — rosbag/MCAP + Foxglove](#recording--playback--rosbagmcap--foxglove)
 - [VLA integration — RAG for robots](#vla-integration--rag-for-robots)
 - [Repository layout](#repository-layout)
@@ -131,21 +134,25 @@ Read the [RRCA architecture](architecture/rrca.md), [`.rrcf.adptr` package forma
 
 ## The five pillars
 
-1. **Remote Control Standard** — one unified UI for any robot, any morphology, covering both **live control** and **replay** of a previously recorded command stream (same wire format, same skill/mode vocabulary, so a recorded session can be played back through the identical panel it was captured from)
+1. **Remote Control Standard** — one unified UI for any robot, any morphology, covering live control and **replay** of a command stream already recorded in RRCF wire format, through the same panel and endpoint contract. For on-road vehicles the same panel renders either a full remote-driving control surface or a remote-assistance advisory surface, gated by the declared [authority tier](#vehicle-control-and-authority-tiers).
 2. **Fleet Management Standard** — complements VDA 5050 / Open-RMF, doesn't compete
-3. **Collection & Integration Standard** — universal wire format for any external system: data pipelines, digital twins, ERP/IoT, dashboards and time-series stores (see [below](#telemetry-is-not-a-by-product--it-is-half-the-contract)), and **imitation learning** — every operator session, human or teleoperated demonstration, is already a `(state, action)` trajectory in one consistent schema across every robot, ready to train on without a per-robot data-wrangling step
-4. **Safety Standard** — e-stop, watchdog, geofence, speed limits standardized across all robots
+3. **Collection & Integration Standard** — because command and telemetry share one wire format, integration runs both directions: a robot streams state out to a pipeline, and a pre-recorded or converted command stream replays back in on a declared [replay endpoint](#data-replay--one-converter-per-source-not-per-robot). One converter per source format (simulator, egocentric demonstration, an imitation-learning dataset) reaches any RRCF-compliant robot or simulator — the converter is a separate implementation artifact; RRCF does not itself infer commands from raw video or tactile data.
+4. **Safety Standard** — e-stop, watchdog, geofence, speed limits, and vehicle authority tiers standardized across all robots
 5. **Choreography Standard** — synchronized multi-robot missions via `.rrcm` files
 
 ## Morphology categories
 
-RRCF-1.0 defines twelve canonical robot morphology categories. Eleven are
-specific morphologies; the twelfth, `custom`, is deliberately open for
+RRCF-1.0 defines thirteen canonical robot morphology categories. Twelve are
+specific morphologies; the thirteenth, `custom`, is deliberately open for
 anything not yet enumerated:
 
 `wheeled` · `legged` · `loco_manip` · `wheeled_humanoid` · `full_humanoid` ·
 `manipulator` · `aerial` · `marine_surface` · `marine_sub` ·
-`industrial_vehicle` · `agri_vehicle` · `custom`
+`industrial_vehicle` · `agri_vehicle` · `road_vehicle` · `custom`
+
+`road_vehicle` (on-road AV/EV — steering/throttle/brake, SAE L2–L4, remote
+driving vs. remote assistance) is new in v0.4; see
+[spec §6, §7.3](spec/RRCF_v04_RFC_Specification.md#6-morphology-category-taxonomy).
 
 Each robot declares exactly one primary category, with additional
 capabilities layered on as `<attachments>` (arms, grippers, sensors, tools).
@@ -189,6 +196,21 @@ and enforced by [`rrcf-conformance lint`](conformance/README.md).
     <skill id="heel_stretch" label="Yoga Pose" cmd='{"mode":"custom_01"}'/>
   </skills>
 
+  <telemetry>
+    <!-- Universal fields every category owes, so an operator sees actual state -->
+    <field id="estop_state" type="enum" values="clear engaged"
+           label="E-Stop" widget="badge"/>
+    <field id="health" type="enum" values="ok warn fault"
+           label="Health" widget="badge"/>
+    <!-- Category + vendor fields, each self-describing (type, unit, range) -->
+    <field id="battery" type="number" unit="%" min="0" max="100"
+           warn_below="20" label="Battery" widget="gauge"/>
+    <field id="speed" type="number" unit="m/s" min="0" max="1.5"
+           label="Speed" widget="gauge"/>
+    <field id="temp" type="number" unit="C" max="55" warn_above="55"
+           label="Temp" widget="gauge"/>
+  </telemetry>
+
   <safety>
     <estop required="true" topic="/rrcf/go2/estop" qos="2"/>
     <watchdog timeout_ms="500" action="halt"/>
@@ -205,8 +227,12 @@ and enforced by [`rrcf-conformance lint`](conformance/README.md).
 </rrcf>
 ```
 
-The full annotated example (HUD, all five input modalities, custom controls,
-telemetry) is in the [spec, §7.1](RRCF_v02_RFC_Specification.pdf).
+This minimal example declares the universal `estop_state` and `health` fields
+plus self-describing category telemetry, so it satisfies the
+[category profile](conformance/profiles/category-profiles.json) that
+`rrcf-conformance lint` enforces. The full annotated example (HUD, all five
+input modalities, custom controls, complete telemetry) is in the
+[spec §7.1](spec/RRCF_v04_RFC_Specification.md#71-complete-example--unitree-go2--z1-arm).
 
 ## Wire format
 
@@ -313,50 +339,141 @@ things normally built per-vendor become build-once:
   `(state, action)` trajectory in one schema, because the state half was
   mandatory all along. See the [five pillars](#the-five-pillars).
 
+## Vehicle control and authority tiers
+
+v0.4 adds the `road_vehicle` category for on-road AV/EV — steering, throttle,
+and brake instead of holonomic `vx`/`vy`/`wz`. Following SAE J3016, RRCF treats
+**remote driving** (direct real-time actuation) and **remote assistance**
+(advisory guidance — route confirmation, waypoint grants, permission-to-proceed,
+no direct actuation) as two distinct operator relationships, not one generic
+"teleoperation."
+
+The `<safety>` block declares **speed-gated authority tiers**. Below the declared
+threshold a remote operator may drive directly; above it the interface
+automatically renders remote-assistance-only controls with no direct actuation:
+
+```xml
+<primary category="road_vehicle">
+  <locomotion axes="steer throttle brake" max_steer_deg="35" max_speed_mps="25"/>
+  <modes>remote_driving remote_assistance autonomous</modes>
+</primary>
+<safety>
+  <authority_tier>
+    <tier name="remote_driving"     max_speed_mps="8" actuation="full"/>
+    <tier name="remote_assistance"  min_speed_mps="8" actuation="waypoint_grant_only"/>
+  </authority_tier>
+</safety>
+```
+
+A compliant robot MUST enforce the tier (reject direct actuation above the
+threshold); a compliant controller MUST render the advisory-only panel when the
+active tier is `remote_assistance`. This makes machine-readable a pattern that
+UL 4600 flags as a risk category and AVSC describes only as prose guidance.
+See [spec §3.4, §7.3](spec/RRCF_v04_RFC_Specification.md#73-vehicle-control-binding-embodiment--steering-throttle-brake).
+
+## Data replay — one converter per source, not per robot
+
+Because collection and control share one wire format, a `<transport>` block may
+declare a **replay endpoint** alongside its live `operator_cmd` and `telemetry`
+endpoints. A replay endpoint accepts the same RRCF wire-format command stream —
+whatever its origin — and plays it back to a physical or simulated target,
+subject to the same e-stop and watchdog enforcement as live input:
+
+```xml
+<endpoint role="replay" protocol="rrcf_mqtt" target="physical|simulation"
+          topic="/rrcf/av_001/replay"/>
+```
+
+One converter per *source format* — simulator trajectories, egocentric/human
+demonstration video, a third-party imitation-learning dataset — reaches any
+RRCF-compliant robot, instead of one integration per (source format, robot)
+pair. The source-to-RRCF converter is a separate implementation artifact:
+**RRCF standardizes the replay path and wire format, not the inference of
+commands from raw sensor data.** See
+[spec §7.4](spec/RRCF_v04_RFC_Specification.md#74-data-replay--sim-egocentric-and-imitation-learning-data-to-any-robot).
+
+## Environment, composition, and identity
+
+Three v0.4 additions handle the reality that a robot rarely operates alone, is
+rarely authored by one party, and is eventually one physical unit among many.
+
+- **Environment declaration ([spec §14](spec/RRCF_v04_RFC_Specification.md#14-environment-declaration)).**
+  Whether GPS is available, whether the space is indoor/outdoor, and where the
+  geofence sits are properties of the *space*, not the robot. An `environment`
+  block declares `space_type`, per-capability `localization`,
+  `degradation_behavior` (enforced by the same e-stop/watchdog machinery), and
+  `bounds`/`geofence` — inlined for a standalone robot or referenced
+  (`environment: { ref: warehouse-A }`) by a whole fleet. Room-fixed cameras and
+  shared compute are declared once in the environment; robot-fixed cameras are
+  declared in the robot's own file.
+
+- **Declaration composition ([spec §15](spec/RRCF_v04_RFC_Specification.md#15-declaration-composition)).**
+  A downstream document never edits or forks an upstream one — it references the
+  base by `{ref, version, hash}` and declares only the delta, like Kustomize or
+  Device Tree overlays. Any `devices` entry that changes payload or reach MUST
+  carry a `derived_limits` block with a `certification` field
+  (`oem_certified` or `integrator_declared`); a compose/validate step MUST refuse
+  full-capability operation if it is missing. File count is a deployment choice —
+  one `robot.rrcf` or split OEM/customer/environment/devices files resolve
+  through the same schema.
+
+- **Identity and lifecycle ([spec §16](spec/RRCF_v04_RFC_Specification.md#16-identity-and-lifecycle)).**
+  A `unit_id` anchors a resolved declaration to one physical robot. A small,
+  safety-scoped set of lifecycle fields (`last_verified`, `service_interval`/
+  `service_due`) may degrade capability or warn when a unit runs past its
+  verification window. Full maintenance-ticket detail stays at the platform
+  layer above RRCF, referenced by `unit_id` — not inside a file a real-time
+  watchdog must parse.
+
 ## Recording & playback — rosbag/MCAP + Foxglove
 
-If a robot's command and telemetry topics are already emitted in RRCF's
-wire format — the same `lx/ly/rx/ry`, `estop`, `twist`, `ts` field names
-across every robot and every category — then recording them into an
-[MCAP](https://mcap.dev/) file (which natively supports arbitrary
-JSON-schema channels) gets you a real, concrete win today, not a
-hypothetical one:
+[MCAP](https://mcap.dev/) stores heterogeneous timestamped streams and
+supports JSON messages with JSON Schema. When an adapter records RRCF command
+and declared-telemetry topics into MCAP, Foxglove can inspect and plot that
+data — with these limits stated honestly:
 
-- **[Foxglove](https://foxglove.dev/)'s generic Plot, Raw, and 3D panels can
-  render straight off the RRCF schema.** Today, a Foxglove layout is
-  hand-built per robot, because every vendor's topic names and fields
-  differ — a battery field might be `battery_pct`, `batt`, or `soc`
-  depending on who built the robot. With RRCF, it's always `battery` under
-  `<telemetry>`, `lx`/`ly`/`rx`/`ry` for stick input, `estop`/`twist`/`ts` on
-  every message, regardless of vendor or morphology category.
-- **One layout template works for any RRCF-compliant robot.** Build a
-  Foxglove layout once against the RRCF wire format, and it works
-  unmodified for a wheeled robot, a drone, or a humanoid — the schema is
-  the same, only the values differ.
-- **rosbag/MCAP recordings become directly comparable across robots and
-  vendors**, since the recorded fields mean the same thing everywhere. A
-  `sit` skill call or an `estop:true` event looks identical in the recording
-  whether it came from a Go2 or a Franka arm.
-- This is buildable now, on top of what's already public: emit RRCF wire
-  format on your existing topics, record with `ros2 bag record` (Foxglove's
-  MCAP writer works the same way), and open the result in Foxglove — no new
-  tooling required on either side of the pipeline.
+- **Raw Messages and Plot work with recorded RRCF data.** Foxglove's Raw
+  Messages panel can inspect JSON fields, and the Plot panel can chart numeric
+  fields via FoxQL expressions. Because RRCF field names, units, and ranges
+  are declared rather than per-vendor, the fields mean the same thing across
+  robots.
+- **3D is not automatic.** Foxglove's 3D panel renders only supported ROS or
+  Foxglove message schemas and requires valid frame data. Custom RRCF JSON
+  must first be transformed with a user script or message-converter extension.
+- **Layout reuse is conditional.** A layout template is reusable when a
+  deployment also keeps topic paths (or aliases/variables) and field
+  identifiers stable — RRCF standardizes the field semantics, not the topic
+  namespace.
+- **Record directly to MCAP** with the ROS 2 MCAP storage plugin:
+
+  ```bash
+  ros2 bag record -s mcap /rrcf/go2/cmd /rrcf/go2/state
+  ```
 
 ## VLA integration — RAG for robots
 
 A `.rrcf` file is designed to be loaded as context by a Vision-Language-Action
-model at session start, the same way a document is retrieved for RAG:
+model at session start, the same way a document is retrieved for RAG. v0.4 is
+explicit that there are **two structurally different tiers**, and an
+implementation must not represent one as the other
+([spec §9](spec/RRCF_v04_RFC_Specification.md#9-vla-integration--rag-for-robots)):
 
-- Declared skills extend the VLA's action vocabulary at runtime — **no
-  fine-tuning required**.
-- Vendor-specific skills (`heel_stretch`, `seed_row_align`, ...) become
-  available to the model instantly, because the skill declaration *is* the
-  context.
-- Generated commands are bounded by the `<safety>` block's declared limits.
+- **Tier 1 — discrete skill invocation (zero-shot).** Matching a
+  natural-language instruction to a declared `skill_id` and emitting its
+  pre-authored `cmd` is standard tool-calling. Vendor-custom skills
+  (`heel_stretch`, `seed_row_align`) become available instantly because the
+  skill declaration *is* the context — no retraining. This is where the
+  "thousands of robots × hundreds of skills" combinatorial win is real.
+- **Tier 2 — continuous, parametric control.** Producing a pose delta or joint
+  target requires the policy's output head to already be conditioned on RRCF's
+  declared action space. The `.rrcf` file supplies the *target* action space; it
+  does **not** supply the unnormalization statistics a continuous-control policy
+  needs — those live in the policy's checkpoint. Loading the file gives
+  zero-shot access to the skill vocabulary (Tier 1); it gives a trained policy a
+  well-defined target for Tier 2, **not** a substitute for that training.
 
-This is what makes thousands of robots × hundreds of skills tractable: RRCF
-makes each robot's skill set available on load, instead of requiring it to be
-trained in.
+Generated commands, in either tier, are bounded by the `<safety>` block's
+declared limits.
 
 ## Repository layout
 
@@ -364,7 +481,8 @@ trained in.
 RRCF/
 ├── README.md                              this file
 ├── LICENSE                                Apache 2.0
-├── RRCF_v02_RFC_Specification.pdf/.docx   full RFC-style spec (source of truth)
+├── spec/RRCF_v04_RFC_Specification.md     renderable Markdown source edition (v0.4)
+├── RRCF_v04_RFC_Specification.pdf         released v0.4 spec artifact
 ├── rrcf-adoption-guide.md                 adopter guidance and publication paths
 ├── architecture/
 │   ├── rrca.md                            RRCA runtime and Adapter boundary
@@ -380,7 +498,7 @@ RRCF/
 │   └── adapters/                          reviewed Adapter entries
 ├── images/                                diagrams used in this README
 ├── reference-implementation/
-│   ├── RCSP1_UniversalRobotControl.jsx    controller-side reference: React/JSX operator UI (9 of 12 categories)
+│   ├── RCSP1_UniversalRobotControl.jsx    controller-side reference: React/JSX operator UI (9 of 13 categories)
 │   └── rrcf_ros2_bridge/                  robot-side reference: ROS 2 node for quick RRCF-transport compliance
 ├── converter-mjcf/                        MJCF → .rrcf draft generator (+ sample .rrcf output)
 │   ├── mjcf_to_rrcf.py                    CLI, uses the real MuJoCo compiler
@@ -455,13 +573,13 @@ Two reference implementations cover both sides of the conformance contract:
 
 - **Controller side** —
   [`reference-implementation/RCSP1_UniversalRobotControl.jsx`](reference-implementation/RCSP1_UniversalRobotControl.jsx)
-  is a working React operator console covering nine of the twelve categories
+  is a working React operator console covering nine of the thirteen categories
   (wheeled, legged, loco-manipulation, wheeled humanoid, full humanoid,
   manipulator, aerial, marine surface, marine sub) — joystick axis mapping,
   mode/skill button legends, telemetry fields, and ROS 2 `Twist` translation,
   all driven from the category registry rather than per-robot code.
-  `industrial_vehicle`, `agri_vehicle`, and `custom` are specified but not yet
-  implemented in the reference console.
+  `industrial_vehicle`, `agri_vehicle`, `road_vehicle`, and `custom` are
+  specified but not yet implemented in the reference console.
   **[Try it live in your browser](https://rrcf-foundation.github.io/demo/index.html)**
   — no install, switches between all nine.
 
@@ -492,7 +610,7 @@ RRCF complements, and does not compete with, existing robotics standards:
 
 | Standard | Covers | Relationship to RRCF |
 |---|---|---|
-| VDA 5050 v3.0 | Fleet mission assignment (wheeled AGV/AMR) | RRCF sits above it — operator UI, all 12 morphologies |
+| VDA 5050 v3.0 | Fleet mission assignment (wheeled AGV/AMR) | RRCF sits above it — operator UI, all 13 morphologies |
 | Open-RMF | Multi-robot task allocation, ROS 2 | Different layer — RRCF adds the operator declaration |
 | URDF / MJCF / SDF / USD | Physical description — kinematics, geometry | RRCF references these via `physical_ref`, doesn't replace them |
 | NVIDIA Halos | Functional safety (IEC 61508) | Halos governs internal failure; RRCF declares external behavioral limits |
@@ -568,26 +686,40 @@ Details, per-category field matrix, and what each layer does **not** prove:
 ## Specification
 
 The complete RFC-style specification — motivation, the five pillars, full
-`.rrcf` schema, wire format, VLA/RAG integration, input modality table,
-conformance requirements, security considerations, and governance/versioning
+`.rrcf` structure, wire format, VLA/RAG integration (Tier 1 vs. Tier 2), input
+modality table, vehicle control-binding and speed-gated authority tiers, data
+replay, environment declaration, declaration composition, identity/lifecycle,
+conformance requirements, security considerations, and the governance/versioning
 roadmap — lives in:
 
-- [`RRCF_v02_RFC_Specification.pdf`](RRCF_v02_RFC_Specification.pdf)
-- [`RRCF_v02_RFC_Specification.docx`](RRCF_v02_RFC_Specification.docx)
+- [`spec/RRCF_v04_RFC_Specification.md`](spec/RRCF_v04_RFC_Specification.md) —
+  renderable Markdown **source edition** (rendered on the website)
+- [`RRCF_v04_RFC_Specification.pdf`](RRCF_v04_RFC_Specification.pdf) — released
+  v0.4 PDF artifact
+
+Earlier drafts (`RRCF_v02_RFC_Specification.pdf`,
+`RRCF_v03_RFC_Specification.docx`) are retained for history only and are
+superseded by v0.4.
+
+> **v0.4 is a draft.** The category field matrix in
+> [`conformance/profiles/category-profiles.json`](conformance/profiles/category-profiles.json)
+> is a proposal under review pending three independent implementations and
+> ratification (see [Versioning & governance](#versioning--governance)).
 
 ## Versioning & governance
 
-RRCF follows semantic versioning. RRCF-1.0 defines all 12 morphology
-categories, the five pillars, and the five input modalities. Category
+RRCF follows semantic versioning. RRCF-1.0 defines all 13 morphology
+categories, the five pillars, and the five baseline input modalities. Category
 proposals go through: proposal → 60-day review → draft → three independent
-implementations → ratification → publication.
+implementations → ratification → publication. The v0.4 draft is the current
+working document toward RRCF-1.0.
 
-| Version | Planned additions |
-|---|---|
-| RRCF-1.0 | 12 categories, all 5 pillars, 5 input modalities |
-| RRCF-1.1 | Voice modality refinements, gesture spec, XR training |
-| RRCF-2.0 | World-context block, benchmarking block, RL reward hints, new categories (medical, surgical, micro, exoskeleton, soft robot, swarm) |
-| RRCF-3.0 | Neural interface, zero-G thruster primitive |
+| Version | Planned additions | New categories |
+|---|---|---|
+| RRCF-1.0 | 13 categories, all 5 pillars, 5 input modalities, vehicle control-binding, speed-gated authority tiers, data replay endpoint, environment declaration, base/overlay/device composition, identity/lifecycle metadata, two-tier VLA conformance | wheeled, legged, loco_manip, wheeled_humanoid, full_humanoid, manipulator, aerial, marine_surface, marine_sub, industrial_vehicle, agri_vehicle, road_vehicle, custom |
+| RRCF-1.1 | Voice modality refinements, gesture spec, XR training, `tactile_glove`/`tactile_arm` haptic input, `bci` (draft) | No new base categories — attachment type additions |
+| RRCF-2.0 | World-context block, benchmarking block, RL reward hints | medical_endoscopic, surgical, micro_robot, exoskeleton, soft_robot, swarm_node |
+| RRCF-3.0 | Neural interface, zero-G thruster primitive | nano_robot, space_zero_g, neural_interface |
 
 ## Contributing
 
