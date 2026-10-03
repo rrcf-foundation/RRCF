@@ -6,7 +6,7 @@
 
 # Robots to the World, Made Easy.
 
-*An open standard that seamlessly connects robots, controllers, operators, AI and the world around them.*
+## An open standard that seamlessly connects robots, controllers, operators, AI and the world around them.
 
 <div align="center">
 
