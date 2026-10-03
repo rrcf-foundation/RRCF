@@ -1,8 +1,10 @@
 <img src="images/rrcf_FULL_TRANSPARENT.png" alt="RRCF — Robot Remote Control Format" width="120" />
 
-# .RRCF — Robot Remote Control Format
+# .RRCF
 
-**Robots to the World, Made Easy.**
+## Robot Remote Control Format
+
+# Robots to the World, Made Easy.
 
 *An open standard that seamlessly connects robots, controllers, operators, AI and the world around them.*
 
