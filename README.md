@@ -1,8 +1,10 @@
 <img src="images/rrcf_FULL_TRANSPARENT.png" alt="RRCF — Robot Remote Control Format" width="120" />
 
-# RRCF — Robot Remote Control Format
+# .RRCF — Robot Remote Control Format
 
-**The Operator Interface Declaration Standard for Physical AI**
+**Robots to the World, Made Easy.**
+
+*An open standard that seamlessly connects robots, controllers, operators, AI and the world around them.*
 
 <div align="center">
 
@@ -11,8 +13,7 @@
 [![Status](https://img.shields.io/badge/status-RFC%20draft-yellow.svg)](spec/RRCF_v04_RFC_Specification.md)
 [![Website](https://img.shields.io/badge/website-rrcf--foundation.github.io-5fc9c0.svg)](https://rrcf-foundation.github.io)
 
-*One `.rrcf` file. Any robot. Any operator — human, another robot, or an AI model.*
-*One declared contract for both command and telemetry — the operator layer for Physical AI.*
+**Are you .RRCF Ready?** → [Explore the Standard](RRCF_v04_RFC_Specification.pdf)
 
 [Website](https://rrcf-foundation.github.io) ·
 [Specification (Markdown)](spec/RRCF_v04_RFC_Specification.md) ·
