@@ -1,5 +1,7 @@
 # rrcf-converters
 
+> **Spec reference:** v0.6 §7 — [spec/RRCF_v06_RFC_Specification.docx](../../../spec/RRCF_v06_RFC_Specification.docx)
+
 Generates draft RRCF 1.0 (`.rrcf`) operator-interface files from robot
 description files. Source format is auto-detected from the root XML tag,
 not the file extension (many formats are all saved as plain `.xml`).
@@ -67,6 +69,11 @@ Every `.rrcf` produced here is scaffolding:
   §11 conformance needs real values here before a file drives an actual
   robot — the converter has no way to know your e-stop topic or your
   vendor's skill names.
+- **Guard-rail (`gr:`) attributes are not emitted** by the converter — they
+  require authoritative source data (vendor test data, integrator sign-off,
+  venue safety policy) that cannot be inferred from a physical description
+  file. Add them by hand after confirming values with your engineering team.
+  See v0.6 §17.2 for provenance requirements.
 
 ## On USD
 

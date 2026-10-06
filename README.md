@@ -11,15 +11,15 @@
 <div align="center">
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Spec Version](https://img.shields.io/badge/spec-v0.4%20draft-orange.svg)](spec/RRCF_v04_RFC_Specification.md)
-[![Status](https://img.shields.io/badge/status-RFC%20draft-yellow.svg)](spec/RRCF_v04_RFC_Specification.md)
+[![Spec Version](https://img.shields.io/badge/spec-v0.6%20draft-orange.svg)](spec/RRCF_v06_RFC_Specification.md)
+[![Status](https://img.shields.io/badge/status-RFC%20draft-yellow.svg)](spec/RRCF_v06_RFC_Specification.md)
 [![Website](https://img.shields.io/badge/website-rrcf--foundation.github.io-5fc9c0.svg)](https://rrcf-foundation.github.io)
 
-**Are you .RRCF Ready?** → [Explore the Standard](RRCF_v04_RFC_Specification.pdf)
+**Are you .RRCF Ready?** → [Explore the Standard](spec/RRCF_v06_RFC_Specification.md)
 
 [Website](https://rrcf-foundation.github.io) ·
-[Specification (Markdown)](spec/RRCF_v04_RFC_Specification.md) ·
-[Specification (PDF)](RRCF_v04_RFC_Specification.pdf) ·
+[Specification (Markdown v0.6)](spec/RRCF_v06_RFC_Specification.md) ·
+[Specification (DOCX v0.6)](spec/RRCF_v06_RFC_Specification.docx) ·
 [Live Controller Demo](https://rrcf-foundation.github.io/demo/index.html) ·
 [Converter](https://rrcf-foundation.github.io/tools/converter.html) ·
 [RRCA Architecture](architecture/rrca.md) ·
@@ -45,6 +45,9 @@
 - [Vehicle control and authority tiers](#vehicle-control-and-authority-tiers)
 - [Data replay — one converter per source, not per robot](#data-replay--one-converter-per-source-not-per-robot)
 - [Environment, composition, and identity](#environment-composition-and-identity)
+- [Guard rails](#guard-rails) ← new in v0.6
+- [Registry and discovery](#registry-and-discovery) ← new in v0.6
+- [RRCF as a robot integration manual](#rrcf-as-a-robot-integration-manual) ← new in v0.6
 - [Recording & playback — rosbag/MCAP + Foxglove](#recording--playback--rosbagmcap--foxglove)
 - [VLA integration — RAG for robots](#vla-integration--rag-for-robots)
 - [Repository layout](#repository-layout)
@@ -154,7 +157,7 @@ anything not yet enumerated:
 `industrial_vehicle` · `agri_vehicle` · `road_vehicle` · `custom`
 
 `road_vehicle` (on-road AV/EV — steering/throttle/brake, SAE L2–L4, remote
-driving vs. remote assistance) is new in v0.4; see
+driving vs. remote assistance) was added in v0.4; see
 [spec §6, §7.3](spec/RRCF_v04_RFC_Specification.md#6-morphology-category-taxonomy).
 
 Each robot declares exactly one primary category, with additional
@@ -236,6 +239,8 @@ plus self-describing category telemetry, so it satisfies the
 `rrcf-conformance lint` enforces. The full annotated example (HUD, all five
 input modalities, custom controls, complete telemetry) is in the
 [spec §7.1](spec/RRCF_v04_RFC_Specification.md#71-complete-example--unitree-go2--z1-arm).
+
+> **v0.6 note:** The full annotated example in the v0.6 DOCX ([spec/RRCF_v06_RFC_Specification.docx](spec/RRCF_v06_RFC_Specification.docx)) now also includes guard-rail (`gr:`) attributes on locomotion, end-effector, and skill elements.
 
 ## Wire format
 
@@ -374,6 +379,11 @@ active tier is `remote_assistance`. This makes machine-readable a pattern that
 UL 4600 flags as a risk category and AVSC describes only as prose guidance.
 See [spec §3.4, §7.3](spec/RRCF_v04_RFC_Specification.md#73-vehicle-control-binding-embodiment--steering-throttle-brake).
 
+Vehicle-category guard rails (§17) add a further tightening mechanism: the
+`<authority_tier>` speed thresholds set the declared bound; a `gr:max_speed_mps`
+attribute on that same element sets the effective operating bound, which MUST be
+≤ the declared value and is the only bound enforced at runtime.
+
 ## Data replay — one converter per source, not per robot
 
 Because collection and control share one wire format, a `<transport>` block may
@@ -395,9 +405,12 @@ pair. The source-to-RRCF converter is a separate implementation artifact:
 commands from raw sensor data.** See
 [spec §7.4](spec/RRCF_v04_RFC_Specification.md#74-data-replay--sim-egocentric-and-imitation-learning-data-to-any-robot).
 
+Replay endpoints are subject to the same e-stop, watchdog, and guard-rail
+enforcement as live `operator_cmd` input (v0.6 §17).
+
 ## Environment, composition, and identity
 
-Three v0.4 additions handle the reality that a robot rarely operates alone, is
+These sections handle the reality that a robot rarely operates alone, is
 rarely authored by one party, and is eventually one physical unit among many.
 
 - **Environment declaration ([spec §14](spec/RRCF_v04_RFC_Specification.md#14-environment-declaration)).**
@@ -428,6 +441,63 @@ rarely authored by one party, and is eventually one physical unit among many.
   layer above RRCF, referenced by `unit_id` — not inside a file a real-time
   watchdog must parse.
 
+## Guard rails
+
+v0.6 adds guard rails (§17) — hard operating bounds on any controllable numeric
+value in a declaration, enforced at runtime alongside e-stop and watchdog:
+
+```xml
+<locomotion axes="vx vy wz" max_vx="1.5" max_vy="0.5" max_wz="2.0"
+            gr:max_vx="1.2" gr:max_vy="0.3"/>
+
+<ee_control cartesian="true" max_force="40N"
+            gr:max_force="20N" gr:max_reach="950mm"/>
+
+<skill id="cut_onion" label="Cut Onion" cmd='{"mode":"cut"}'
+       gr:knife_height="5in" gr:knife_lateral="5in"/>
+```
+
+A `gr:` attribute is a tightening override on the same element's declared
+value. It can appear on locomotion axes, skill parameters, end-effector
+controls, custom controls, or any IoT device in an environment artifact. The
+resolved **Effective GR** is the minimum across four composition layers:
+vendor-certified → integrator → venue → task. A compliant robot MUST **reject**
+(not merely clamp) commands that violate a resolved `gr:` bound, and MUST
+report the rejection on its telemetry channel.
+
+See [spec §17](spec/RRCF_v06_RFC_Specification.docx) for the full composition
+chain, provenance rules, default/legally-mandated guardrails, and conformance
+validation requirements.
+
+## Registry and discovery
+
+v0.6 formalises two Foundation-governed registries (§18):
+
+- **Adapter Registry** — public, versioned index mapping `{category, vendor,
+  model}` to the matching `.rrcf.adptr` and RRCA Spec version it targets.
+  Controllers discover adapters by querying this registry rather than bundling
+  every possible robot SDK.
+- **Unit and Licensing Registry** — deployed units MAY be registered under a
+  licensing authority (the RRCF Foundation or a local regulatory body) keyed
+  by `unit_id`. Guardrail violations (§17.6) and safety-relevant composition
+  changes (§15.4) SHOULD be reported here.
+
+Discovery is registry lookup, not a new network protocol — mDNS, fleet
+platform device lists, and similar transport-level mechanisms are left to the
+deployment. See [registry/README.md](registry/README.md) and [spec §18](spec/RRCF_v06_RFC_Specification.docx).
+
+## RRCF as a robot integration manual
+
+v0.6 §19 formalises a pattern already implied by the spec: a single `.rrcf`
+declaration serves three consumers at once — a **human operator** (generates
+readable operating instructions), a **control UI or VLA agent** (renders the
+operator interface), and a **validator** (checks conformance). A vendor that
+accurately documents its robot in `.rrcf` has, as a byproduct, produced its
+integration documentation — no separate SDK onboarding needed.
+
+See [spec §19](spec/RRCF_v06_RFC_Specification.docx) for the worked examples,
+including Unitree Go2, UR5 manipulator, and agricultural vehicle.
+
 ## Recording & playback — rosbag/MCAP + Foxglove
 
 [MCAP](https://mcap.dev/) stores heterogeneous timestamped streams and
@@ -456,8 +526,8 @@ data — with these limits stated honestly:
 ## VLA integration — RAG for robots
 
 A `.rrcf` file is designed to be loaded as context by a Vision-Language-Action
-model at session start, the same way a document is retrieved for RAG. v0.4 is
-explicit that there are **two structurally different tiers**, and an
+model at session start, the same way a document is retrieved for RAG. The spec
+is explicit that there are **two structurally different tiers**, and an
 implementation must not represent one as the other
 ([spec §9](spec/RRCF_v04_RFC_Specification.md#9-vla-integration--rag-for-robots)):
 
@@ -484,8 +554,14 @@ declared limits.
 RRCF/
 ├── README.md                              this file
 ├── LICENSE                                Apache 2.0
-├── spec/RRCF_v04_RFC_Specification.md     renderable Markdown source edition (v0.4)
-├── RRCF_v04_RFC_Specification.pdf         released v0.4 spec artifact
+├── spec/
+│   ├── RRCF_v06_RFC_Specification.md      renderable Markdown edition (v0.6, active)
+│   ├── RRCF_v06_RFC_Specification.docx    v0.6 DOCX source
+│   ├── RRCF_v04_RFC_Specification.md      renderable Markdown edition (v0.4, superseded)
+│   ├── RRCF_v04_RFC_Specification.pdf     released v0.4 PDF artifact (superseded)
+│   ├── RRCF_v03_RFC_Specification.docx    historical draft (superseded)
+│   ├── RRCF_v02_RFC_Specification.pdf     historical draft (superseded)
+│   └── RRCF_v02_RFC_Specification.docx    historical draft (superseded)
 ├── rrcf-adoption-guide.md                 adopter guidance and publication paths
 ├── architecture/
 │   ├── rrca.md                            RRCA runtime and Adapter boundary
@@ -659,6 +735,8 @@ same wire format and are held to the same safety-limit contract, so the
 robot never needs to know which kind of operator it's talking to.
 
 Full requirements, including transport security and rate-limiting: spec §11–§13.
+Guard-rail conformance requirements (reject vs. clamp, violation reporting,
+guardrail validation): spec §17.
 
 ### How any of this is actually enforced
 
@@ -692,19 +770,24 @@ The complete RFC-style specification — motivation, the five pillars, full
 `.rrcf` structure, wire format, VLA/RAG integration (Tier 1 vs. Tier 2), input
 modality table, vehicle control-binding and speed-gated authority tiers, data
 replay, environment declaration, declaration composition, identity/lifecycle,
+guard rails, registry and discovery, RRCF as a robot integration manual,
 conformance requirements, security considerations, and the governance/versioning
 roadmap — lives in:
 
+- [`spec/RRCF_v06_RFC_Specification.md`](spec/RRCF_v06_RFC_Specification.md) —
+  renderable Markdown edition **(v0.6, the active specification — rendered on
+  the website)**
+- [`spec/RRCF_v06_RFC_Specification.docx`](spec/RRCF_v06_RFC_Specification.docx) —
+  v0.6 DOCX source (same content as the Markdown edition above)
 - [`spec/RRCF_v04_RFC_Specification.md`](spec/RRCF_v04_RFC_Specification.md) —
-  renderable Markdown **source edition** (rendered on the website)
-- [`RRCF_v04_RFC_Specification.pdf`](RRCF_v04_RFC_Specification.pdf) — released
-  v0.4 PDF artifact
+  renderable Markdown edition (v0.4, superseded by v0.6)
 
-Earlier drafts (`RRCF_v02_RFC_Specification.pdf`,
-`RRCF_v03_RFC_Specification.docx`) are retained for history only and are
-superseded by v0.4.
+Earlier drafts (`spec/RRCF_v04_RFC_Specification.pdf`,
+`spec/RRCF_v03_RFC_Specification.docx`, `spec/RRCF_v02_RFC_Specification.pdf`,
+`spec/RRCF_v02_RFC_Specification.docx`) are retained in `spec/` for history
+only and are superseded by v0.6.
 
-> **v0.4 is a draft.** The category field matrix in
+> **v0.6 is a draft.** The category field matrix in
 > [`conformance/profiles/category-profiles.json`](conformance/profiles/category-profiles.json)
 > is a proposal under review pending three independent implementations and
 > ratification (see [Versioning & governance](#versioning--governance)).
@@ -719,7 +802,7 @@ working document toward RRCF-1.0.
 
 | Version | Planned additions | New categories |
 |---|---|---|
-| RRCF-1.0 | 13 categories, all 5 pillars, 5 input modalities, vehicle control-binding, speed-gated authority tiers, data replay endpoint, environment declaration, base/overlay/device composition, identity/lifecycle metadata, two-tier VLA conformance | wheeled, legged, loco_manip, wheeled_humanoid, full_humanoid, manipulator, aerial, marine_surface, marine_sub, industrial_vehicle, agri_vehicle, road_vehicle, custom |
+| RRCF-1.0 | 13 categories, all 5 pillars, 5 input modalities, vehicle control-binding, speed-gated authority tiers, data replay endpoint, environment declaration, base/overlay/device composition, identity/lifecycle metadata, two-tier VLA conformance, guard rails (§17), registry & discovery (§18), robot integration manual (§19) | wheeled, legged, loco_manip, wheeled_humanoid, full_humanoid, manipulator, aerial, marine_surface, marine_sub, industrial_vehicle, agri_vehicle, road_vehicle, custom |
 | RRCF-1.1 | Voice modality refinements, gesture spec, XR training, `tactile_glove`/`tactile_arm` haptic input, `bci` (draft) | No new base categories — attachment type additions |
 | RRCF-2.0 | World-context block, benchmarking block, RL reward hints | medical_endoscopic, surgical, micro_robot, exoskeleton, soft_robot, swarm_node |
 | RRCF-3.0 | Neural interface, zero-G thruster primitive | nano_robot, space_zero_g, neural_interface |

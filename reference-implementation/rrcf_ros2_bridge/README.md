@@ -1,10 +1,12 @@
 # rrcf_ros2_bridge
 
+> **Spec reference:** v0.6 §11.1 — [spec/RRCF_v06_RFC_Specification.docx](../../spec/RRCF_v06_RFC_Specification.docx)
+
 A minimal ROS 2 node that makes an existing ROS 2 robot **RRCF-transport
 compliant** without touching its control stack. Point it at your robot's
 `.rrcf` file and its existing `/cmd_vel`, e-stop, and telemetry topics — it
 does the rest: MQTT ↔ ROS 2 translation, safety-limit clamping, the
-mandatory watchdog, and estop propagation.
+mandatory watchdog, estop propagation, and guard-rail enforcement (v0.6 §17).
 
 This is the "quick path" referenced in the
 [RRCF adoption guide](../../rrcf-adoption-guide.md): most ROS 2 robots
@@ -27,8 +29,9 @@ so a robot can become RRCF-compliant in an afternoon instead of a rewrite.
 ```
 
 - **Loads your `.rrcf` file** at startup — category, `max_vx/vy/wz` speed
-  limits, e-stop topic/QoS, watchdog timeout, and the declared MQTT
-  transport endpoints all come from the declaration, not hardcoded config.
+  limits, e-stop topic/QoS, watchdog timeout, guard-rail (`gr:`) attributes,
+  and the declared MQTT transport endpoints all come from the declaration,
+  not hardcoded config.
 - **Subscribes to the declared `operator_cmd` MQTT topic.** Every valid RRCF
   wire-format message is converted to a `geometry_msgs/Twist` and published
   on `/cmd_vel` (or whatever topic you map it to).
@@ -43,6 +46,10 @@ so a robot can become RRCF-compliant in an afternoon instead of a rewrite.
     regardless of what the operator sent.
   - Telemetry republish at the declared `frequency_hz`, sourced from
     whatever ROS topics you map in `telemetry_map`.
+- **Guard-rail enforcement (v0.6 §17):** resolved `gr:` bounds are read from
+  the declaration at startup. Commands that would violate a bound are
+  **rejected** (not merely clamped) and the rejection is reported on the
+  telemetry channel as `declared-guardrail-violation`.
 - **Dispatches skills** as `std_msgs/String` on `/rrcf/<slug>/skill` by
   default, so a simple ROS 2 subscriber (or an existing behavior-tree /
   state-machine node) can act on `skill:<id>` without the bridge needing to

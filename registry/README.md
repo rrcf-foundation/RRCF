@@ -1,6 +1,8 @@
 # RRCF Adapter Registry
 
-The RRCF Adapter Registry is the Foundation-governed catalog of endpoint Adapters that connect RRCA to robot SDKs, ROS stacks, simulators, serial devices, and cloud robot APIs.
+> **Spec reference:** v0.6 §18 — [spec/RRCF_v06_RFC_Specification.docx](../spec/RRCF_v06_RFC_Specification.docx)
+
+The RRCF Adapter Registry is the Foundation-governed catalog of endpoint Adapters that connect RRCA to robot SDKs, ROS stacks, simulators, serial devices, and cloud robot APIs. v0.6 (§18) formalises the Adapter Registry alongside a new Unit and Licensing Registry — both are described below.
 
 The Registry is git-backed so every addition, update, deprecation, and revocation is reviewable and version controlled. Public Registry data never contains device credentials, unit secrets, or private calibration records.
 
@@ -82,6 +84,24 @@ The Foundation may deprecate or revoke an entry for security, publisher request,
 ## Private and mirrored registries
 
 Organizations may operate private or mirrored registries using the same index and manifest schemas. RRCA implementations SHOULD allow an explicit Registry trust configuration rather than hard-coding one network location. Private registries are useful for proprietary Adapters and internal robot models.
+
+## Unit and Licensing Registry (v0.6 §18.2)
+
+A deployed unit MAY be registered under a licensing authority — the RRCF Foundation itself, or a local regulatory body for jurisdictions that require it (an equivalent of a vehicle licensing authority, in particular for `road_vehicle`-category units) — keyed by `unit_id` (§16.1).
+
+A registered unit's guardrail violations (§17.6) and safety-relevant composition changes (§15.4) SHOULD be reported to its licensing authority, giving a jurisdiction the same accountability mechanism for autonomous units that already exists for licensed vehicles and drivers.
+
+This registry is separate from the Adapter Registry above; it is operated by the certification authority (§12) and is not git-backed in this repository.
+
+## Discovery (v0.6 §18.3)
+
+Discovery is registry lookup, not a separate protocol:
+
+- A controller discovers a robot's Adapter via the Adapter Registry (§18.1).
+- A robot or controller discovers the Environment artifact for its current space via the `ref` it was configured with, or a local advertisement mechanism out of scope for RRCF itself.
+- A licensing authority discovers a unit's compliance history via the Unit and Licensing Registry (§18.2).
+
+RRCF does not define a new network-discovery protocol — mDNS, a fleet platform's own device list, and similar transport-level mechanisms are left to the deployment.
 
 ## Package specification
 

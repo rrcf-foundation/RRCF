@@ -1,11 +1,14 @@
 # RRCF Conformance
 
+> **Spec reference:** v0.6 §11, §17.5 — [spec/RRCF_v06_RFC_Specification.docx](../spec/RRCF_v06_RFC_Specification.docx)
+
 How "mandatory" becomes something other than a word in a document.
 
 RRCF's spec prose says a robot MUST publish an e-stop state, MUST declare a
-watchdog, MUST publish telemetry on every declared field. Prose alone is
-unenforceable — until this directory existed, every one of those requirements
-was checkable only by a human reading a PDF and choosing to care.
+watchdog, MUST publish telemetry on every declared field, and MUST reject
+(not merely clamp) commands that violate a resolved guard-rail bound (v0.6 §17).
+Prose alone is unenforceable — until this directory existed, every one of those
+requirements was checkable only by a human reading a document and choosing to care.
 
 Enforcement has three layers. They check different things, and none of them
 substitutes for the others.
@@ -252,6 +255,26 @@ A new mandatory field is a **breaking change** for existing declarations. It
 belongs in a minor or major RRCF version with a migration note, not a patch —
 see [Versioning & governance](../README.md#versioning--governance).
 
+## Guard-rail conformance (v0.6 §17.5)
+
+v0.6 extends the mandatory validation of §15.2 to guard rails. A compliant
+implementation MUST provide a validator that checks a `.rrcf` file, and any
+Environment artifact it references, for the presence of all legally-required
+guardrails for the declared jurisdiction before accepting the declaration for
+full-capability operation.
+
+Layer 1 (`lint`) checks:
+- `gr:` values are ≤ the parent attribute they tighten (a guardrail cannot loosen a bound).
+- `gr:` values are present for any attribute that legally-mandated guardrails require (geofence, no-fly zones, home-deployment safety).
+
+Layer 2 (`check-session`) checks:
+- Commands rejected by a `gr:` bound are reported on the telemetry channel (`declared-guardrail-violation`).
+- No command that would violate a `gr:` bound was executed rather than rejected.
+
+Violation reporting (§17.6): a guardrail violation MUST be reported on the robot's
+telemetry channel and SHOULD be reported to the unit's licensing authority (§18.2)
+via its `unit_id` (§16.1).
+
 ## Status
 
 `profilesVersion` 1.0, targeting RRCF-1.0. The category profiles are a draft
@@ -259,5 +282,8 @@ proposal: the specific mandatory field sets need review by implementers before
 ratification, and the process for that is the same one used for category
 proposals — proposal, 60-day review, three independent implementations,
 ratification.
+
+v0.6 adds guard-rail conformance (§17.5) to the Layer 1 and Layer 2 scope
+described above.
 
 The mechanism is what is being asserted here, not the final field lists.
