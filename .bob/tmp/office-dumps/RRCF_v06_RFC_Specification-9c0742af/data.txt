@@ -1,0 +1,487 @@
+[/body/p[1]] 
+[/body/p[2]] Robot Remote Control Working Group                    [YOUR FULL NAME]
+[/body/p[3]] Request for Comments: RRCF-0001                Indo-Mars Technologies
+[/body/p[4]] Category: Standards Track                    Version 0.6 DRAFT  October 5, 2026
+[/body/p[5]] 
+[/body/p[6]] RRCF: Robot Remote Control Format
+[/body/p[7]] Operator Interface Declaration Standard for Physical AI
+[/body/p[8]] Version 1.0 Draft — Apache License 2.0
+[/body/p[9]] We are entering an era of robot proliferation without historical precedent. From sub-millimeter medical nanorobots to multi-ton industrial humanoids, from agricultural swarms covering thousands of acres to personal service robots in every home — the diversity and scale of robotic deployment will reach billions of units within this decade.
+[/body/p[10]] In every deployment context, a human in the loop is inevitable. A surgeon monitors a medical robot. A farmer supervises an agricultural swarm. A warehouse manager oversees a mixed fleet. A first responder needs to halt a malfunctioning robot. A child interacts with a home assistant. An AI system generates commands for a physical agent. At every level — from direct teleoperation to high-level supervision to emergency intervention — humans will interact with robots constantly, every day, at all times.
+[/body/p[11]] Today, every robot requires its own controller, its own interface, its own training. This fragmentation is unsustainable at scale. Just as the proliferation of automobiles required standardized controls so that any licensed driver could operate any vehicle safely, the proliferation of billions of robots demands a global common operator interface standard. Without it, robot operation remains a specialist skill, safety is inconsistent, fleet management is fragmented, and the potential of Physical AI is bottlenecked by interface incompatibility.
+[/body/p[12]] Billions of robots are coming — from nano to humanoid. Every human will deal with robots every day. A global common operator interface standard is not optional. RRCF is that standard.
+[/body/p[13]] 
+[/body/p[14]] Abstract
+[/body/p[15]] We present RRCF (Robot Remote Control Format), the first Operator Interface Declaration Standard for robotic platforms. RRCF defines a machine-readable file format (.rrcf) in which robot manufacturers declare their complete operator control interface — morphology category, locomotion modes, skill repertoire, HUD display fields, joystick axis semantics, input modalities (touch, HID gamepad, voice, gesture, XR), attachment control panels, custom operator controls, safety limits, and transport endpoints. Any RRCF-compliant controller — web UI, fleet dashboard, or VLA model — reads this declaration and renders the correct operator interface without per-robot code. Human operators use the rendered web UI; AI systems load the .rrcf profile directly at session start via retrieval-augmented generation (RAG for robots). RRCF complements URDF, VDA 5050, Open-RMF, and NVIDIA Halos as the missing operator interface layer. Published Apache 2.0.
+[/body/p[16]] 1. Motivation — The Human-Robot Interface Imperative
+[/body/p[17]] We are entering an era of robot proliferation without historical precedent. From sub-millimeter medical nanorobots to multi-ton industrial humanoids, from agricultural swarms covering thousands of acres to personal service robots in every home — the diversity and scale of robotic deployment will reach billions of units within this decade.
+[/body/p[18]] In every deployment context, a human in the loop is inevitable. A surgeon monitors a medical robot. A farmer supervises an agricultural swarm. A warehouse manager oversees a mixed fleet. A first responder needs to halt a malfunctioning robot. A child interacts with a home assistant. An AI system generates commands for a physical agent. At every level — from direct teleoperation to high-level supervision to emergency intervention — humans will interact with robots constantly, every day, at all times.
+[/body/p[19]] Today, every robot requires its own controller, its own interface, its own training. This fragmentation is unsustainable at scale. Just as the proliferation of automobiles required standardized controls so that any licensed driver could operate any vehicle safely, the proliferation of billions of robots demands a global common operator interface standard. Without it, robot operation remains a specialist skill, safety is inconsistent, fleet management is fragmented, and the potential of Physical AI is bottlenecked by interface incompatibility.
+[/body/p[20]] Billions of robots are coming — from nano to humanoid. Every human will deal with robots every day. A global common operator interface standard is not optional. RRCF is that standard.
+[/body/p[21]] This extends to on-road autonomous and electric vehicles — cars, robotaxis, and EV shuttle fleets are, at the operator-interface layer, simply another class of RRCF-compliant vehicle. Following SAE J3016, RRCF treats remote assistance (advisory guidance — route confirmation, obstacle waypoint grants, permission-to-proceed — without direct actuation) and remote driving (direct real-time control of steering, throttle, and brake) as two distinct, correctly-scoped operator relationships, rather than folding both into the generic term “teleoperation.”
+[/body/p[22]] 2. Core Definition
+[/body/p[23]] RRCF is the Operator Interface Declaration Standard that defines how any robot is controlled — by human operators through a unified web UI, or by AI systems (VLA) through direct .rrcf profile loading at runtime — and also includes fleet management, collection and integration, safety guardrails, and choreography standards, complementing URDF, VDA 5050, and other existing standards to support most parts of Physical AI.
+[/body/p[24]] 
+[/body/p[25]] Key distinction: RRCF is an Operator Interface Declaration. VDA 5050 and Open-RMF are fleet mission assignment protocols. They operate at different layers and are complementary. RRCF sits above fleet protocols as the human/AI-facing operator layer.
+[/body/p[26]] 3. The Five Pillars
+[/body/p[27]] 1. REMOTE CONTROL STANDARD  —  One unified UI for any robot, any morphology
+2. FLEET MANAGEMENT STANDARD  —  Complements VDA 5050 / Open-RMF (not competes)
+3. COLLECTION & INTEGRATION STANDARD  —  Universal wire format for any external system
+4. SAFETY STANDARD  —  E-stop, watchdog, geofence standardized across all robots
+5. CHOREOGRAPHY STANDARD  —  Synchronized multi-robot missions (.rrcm files)
+[/body/p[28]] 
+[/body/p[29]] 3.1 Pillar 1 — Remote Control Standard (Primary Purpose)
+[/body/p[30]] RRCF's primary purpose is a unified operator interface for any robot. A robot manufacturer publishes a .rrcf file. Any RRCF-compliant web controller reads it and renders the correct interface — joysticks, mode buttons, skill actions, HUD strip, button legend, attachment tabs, custom controls — without per-robot code. Operator means human (web UI) or AI system (VLA via .rrcf profile).
+[/body/p[31]] This pattern extends directly to on-road vehicles: an RRCF-compliant EV or robotaxi declares a road_vehicle primary category with steering, throttle, and brake control bindings (Section 6, Section 7.3), and the same operator interface renders either a full remote-driving control panel or a remote-assistance advisory panel depending on the declared authority tier (Section 3.4, Section 11).
+[/body/p[32]] 3.2 Pillar 2 — Fleet Management Standard
+[/body/p[33]] RRCF complements VDA 5050 and Open-RMF — it does not compete with them. VDA 5050 defines how fleet software assigns missions to robots (backend, machine-to-machine). Open-RMF orchestrates multi-robot task allocation. RRCF defines how operators control and monitor robots (frontend, human-or-AI-to-machine). RRCF sits above these protocols: a RRCF-compliant robot declares its VDA 5050 endpoint within its .rrcf transport block, enabling unified operator control above the existing fleet protocol stack.
+[/body/p[34]] 3.3 Pillar 3 — Collection & Integration Standard
+[/body/p[35]] Because RRCF defines the wire format for all robot commands and telemetry, the same format used for remote control becomes the universal integration format for any external system: data collection pipelines, VLA training datasets, digital twins, simulators, hospital management systems, ERP platforms, safety stacks, and cloud IoT services. One wire format connects robots to the entire software ecosystem — analogous to how USB's common standard enabled any device to connect to any computer.
+[/body/p[36]] Because the wire format is symmetric, integration runs in both directions. The same schema that lets a robot stream telemetry out to a collection pipeline lets a pre-recorded or converted command stream be replayed back in — on a declared replay transport endpoint (Section 7.4) — to any RRCF-compliant robot, physical or simulated, exactly as if a live operator or VLA had generated it.
+[/body/p[37]] This gives RRCF a general answer to a problem every robotics team otherwise solves separately: getting data collected in one format, on one platform, executed on another. Simulator-generated trajectories, egocentric/human demonstration video, third-party imitation-learning datasets, and any other future data source each need only one converter — source format to RRCF wire format — after which the same replay path plays them back to a real or simulated robot, solving sim-to-real, egocentric-to-real, and imitation-learning-to-real transfer without a separate integration per (source format, robot) pair.
+[/body/p[38]] 3.4 Pillar 4 — Safety Standard
+[/body/p[39]] RRCF mandates E-stop in every .rrcf file. Every compliant robot must halt immediately on estop:true. RRCF also declares watchdog timeouts, geofence boundaries, and speed limits as operational guardrails. RRCF safety declarations complement NVIDIA Halos (IEC 61508 functional safety) and ISO 10218 — Halos ensures the robot does not fail internally; RRCF declares what the robot is permitted to do externally. Together they form a complete safety architecture for Physical AI.
+[/body/p[40]] For vehicle-category robots, RRCF also declares speed-gated remote-operator authority tiers: a .rrcf safety block may bound full remote-driving authority to below a declared speed threshold, escalating automatically to remote-assistance-only (monitor plus waypoint or permission grants, no direct actuation) above that threshold. This gives a portable, machine-readable schema for a pattern that UL 4600 flags as a risk category requiring mitigation and that AVSC's Remote Assistance Use-Case best practice describes only as guidance (Section 5, Section 7.3, Section 11).
+[/body/p[41]] 3.5 Pillar 5 — Choreography Standard
+[/body/p[42]] RRCF defines .rrcm (RRCF Mission) files for synchronized multi-robot operations. Pre-computed per-robot trajectories trigger simultaneously via GPS clock sync. Covers drone light shows, robot dance performances, coordinated agricultural swarm operations, and emergency fleet coordination.
+[/body/p[43]] 4. The Three-Layer Robotics Standard Stack
+[/body/p[44]] RRCF completes the three-layer robotics standard stack:
+[/body/tbl[1]] [Table: 4 rows]
+[/body/p[45]] 
+[/body/p[46]] The operator layer was empty before RRCF. Every robot vendor filled it with proprietary solutions. RRCF standardizes it for the first time.
+[/body/p[47]] 5. Prior Art and Differentiation
+[/body/tbl[2]] [Table: 9 rows]
+[/body/p[48]] 
+[/body/p[49]] 6. Morphology Category Taxonomy
+[/body/p[50]] RRCF-1.0 defines thirteen canonical robot morphology categories plus an open custom category for future morphologies. A robot declares exactly one primary category. Additional categories may be declared as attachments.
+[/body/tbl[3]] [Table: 14 rows]
+[/body/p[51]] 
+[/body/p[52]] 7. RRCF File Structure — .rrcf
+[/body/p[53]] A .rrcf file is an XML document. The file may be standalone or embedded within an existing robot description file (URDF, MJCF, etc.):
+[/body/p[54]] <?xml version="1.0" encoding="UTF-8"?>
+[/body/p[55]] <rrcf version="1.0" xmlns="https://rrcf.io/schema/1.0">
+[/body/p[56]]   <meta>              <!-- Robot identity, vendor, physical refs -->
+[/body/p[57]]   <primary>           <!-- Primary category + locomotion declaration -->
+[/body/p[58]]   <attachments>       <!-- 0-N attachments: arm, gripper, sensor, tool -->
+[/body/p[59]]   <hud>               <!-- HUD/LCD strip + context-sensitive button legend -->
+[/body/p[60]]   <skills>            <!-- Standard + vendor-custom skill declarations -->
+[/body/p[61]]   <input_modalities>  <!-- touch, HID gamepad, voice, gesture, XR -->
+[/body/p[62]]   <custom_controls>   <!-- Up to 5 operator-defined controls -->
+[/body/p[63]]   <telemetry>         <!-- Declared telemetry fields + warn thresholds -->
+[/body/p[64]]   <safety>            <!-- E-stop, watchdog, geofence, speed limits -->
+[/body/p[65]]   <transport>         <!-- MQTT, ROS2, WebSocket, VDA5050, REST -->
+[/body/p[66]]   <extensions/>       <!-- Future RRCF-2.0 blocks, ignored by 1.0 -->
+[/body/p[67]] </rrcf>
+[/body/p[68]] 
+[/body/p[69]] 7.1 Complete Example — Unitree Go2 + Z1 Arm
+[/body/p[70]] <rrcf version="1.0" xmlns="https://rrcf.io/schema/1.0">
+[/body/p[71]]   <meta>
+[/body/p[72]]     <name>Unitree Go2 + Z1 Arm</name>
+[/body/p[73]]     <vendor>Unitree Robotics</vendor>
+[/body/p[74]]     <model>Go2-Z1</model>
+[/body/p[75]]     <physical_ref format="urdf" path="go2_z1.urdf"/>
+[/body/p[76]]     <physical_ref format="mjcf" path="go2_z1.xml"/>
+[/body/p[77]]   </meta>
+[/body/p[78]]   <primary category="legged">
+[/body/p[79]]     <locomotion axes="vx vy wz" max_vx="1.5" max_vy="0.5" max_wz="2.0"/>
+[/body/p[80]]     <modes>stand trot bound crawl prone</modes>
+[/body/p[81]]     <body_pose pitch="true" roll="true" height="true"/>
+[/body/p[82]]   </primary>
+[/body/p[83]]   <attachments>
+[/body/p[84]]     <attach type="manipulator" id="arm_z1" mount="torso_top" dof="6">
+[/body/p[85]]       <modes>stow reach teach replay</modes>
+[/body/p[86]]       <ee_control cartesian="true"/>
+[/body/p[87]]     </attach>
+[/body/p[88]]     <attach type="gripper" id="grip_z1" mount="arm_z1/ee" fingers="2"/>
+[/body/p[89]]   </attachments>
+[/body/p[90]]   <hud>
+[/body/p[91]]     <field id="mode"    position="1" label="MODE"/>
+[/body/p[92]]     <field id="battery" position="2" label="BATT"/>
+[/body/p[93]]     <field id="estop"   position="3" label="STOP" alert="true"/>
+[/body/p[94]]     <button_legend>
+[/body/p[95]]       <mode name="trot">
+[/body/p[96]]         <key id="F1" label="SIT"/> <key id="F2" label="STAND"/>
+[/body/p[97]]         <key id="F3" label="BOUND"/>
+[/body/p[98]]       </mode>
+[/body/p[99]]       <mode name="reach">
+[/body/p[100]]         <key id="F1" label="GRIP"/> <key id="F2" label="RELEASE"/>
+[/body/p[101]]         <key id="F3" label="STOW"/>
+[/body/p[102]]       </mode>
+[/body/p[103]]     </button_legend>
+[/body/p[104]]   </hud>
+[/body/p[105]]   <skills>
+[/body/p[106]]     <skill id="sit"   label="Sit"  standard="true" cmd='{"mode":"sit"}'/>
+[/body/p[107]]     <skill id="stand" label="Stand" standard="true" cmd='{"mode":"stand"}'/>
+[/body/p[108]]     <!-- Vendor custom — VLA reads at runtime, no retraining needed -->
+[/body/p[109]]     <skill id="heel_stretch" label="Yoga Pose"
+[/body/p[110]]            description="Extends rear legs in yoga pose"
+[/body/p[111]]            cmd='{"mode":"custom_01"}'/>
+[/body/p[112]]   </skills>
+[/body/p[113]]   <input_modalities>
+[/body/p[114]]     <modality type="touch_web"   enabled="true"/>
+[/body/p[115]]     <modality type="hid_gamepad" enabled="true" standard="xinput">
+[/body/p[116]]       <axis hid="left_x"  rrcf="lx"/>
+[/body/p[117]]       <axis hid="left_y"  rrcf="ly" invert="true"/>
+[/body/p[118]]       <axis hid="right_x" rrcf="rx"/>
+[/body/p[119]]       <axis hid="right_y" rrcf="ry" invert="true"/>
+[/body/p[120]]       <button hid="A"  action="skill:sit"/>
+[/body/p[121]]       <button hid="B"  action="estop"/>
+[/body/p[122]]       <button hid="RB" action="mode_next"/>
+[/body/p[123]]     </modality>
+[/body/p[124]]     <modality type="voice" enabled="true" language="en-US">
+[/body/p[125]]       <phrase text="emergency stop" action="estop"/>
+[/body/p[126]]       <phrase text="go home"        action="skill:home"/>
+[/body/p[127]]     </modality>
+[/body/p[128]]     <modality type="gesture_cam" enabled="true" backend="mediapipe">
+[/body/p[129]]       <gesture name="fist"      action="estop"/>
+[/body/p[130]]       <gesture name="thumbs_up" action="skill:stand"/>
+[/body/p[131]]     </modality>
+[/body/p[132]]     <modality type="xr_controller" enabled="true" api="webxr">
+[/body/p[133]]       <hand side="left"  maps_to="left_stick"/>
+[/body/p[134]]       <hand side="right" maps_to="right_stick"/>
+[/body/p[135]]       <trigger side="right" action="skill:grip"/>
+[/body/p[136]]     </modality>
+[/body/p[137]]   </input_modalities>
+[/body/p[138]]   <custom_controls max="5">
+[/body/p[139]]     <control type="toggle" id="led"         label="LED Strip" default="off"/>
+[/body/p[140]]     <control type="slider" id="follow_dist" label="Follow Dist"
+[/body/p[141]]              min="0.5" max="3.0" unit="m"/>
+[/body/p[142]]     <control type="button" id="bark"        label="Bark" action="momentary"/>
+[/body/p[143]]   </custom_controls>
+[/body/p[144]]   <telemetry>
+[/body/p[145]]     <field id="battery" unit="%"   warn_below="20"/>
+[/body/p[146]]     <field id="temp"    unit="C"   warn_above="55"/>
+[/body/p[147]]     <field id="speed"   unit="m/s"/>
+[/body/p[148]]     <field id="payload" unit="kg"/>
+[/body/p[149]]   </telemetry>
+[/body/p[150]]   <safety>
+[/body/p[151]]     <estop required="true" topic="/rrcf/go2/estop" qos="2"/>
+[/body/p[152]]     <watchdog timeout_ms="500" action="halt"/>
+[/body/p[153]]     <speed_limit max_vx="1.5" max_wz="2.0"/>
+[/body/p[154]]   </safety>
+[/body/p[155]]   <transport>
+[/body/p[156]]     <endpoint role="operator_cmd" protocol="rrcf_mqtt"
+[/body/p[157]]               topic="/rrcf/go2/cmd" broker="${MQTT_BROKER}"/>
+[/body/p[158]]     <endpoint role="telemetry"    protocol="mqtt"
+[/body/p[159]]               topic="/rrcf/go2/state" frequency_hz="10"/>
+[/body/p[160]]     <endpoint role="ros2"         protocol="ros2"
+[/body/p[161]]               topic="/cmd_vel" msg="geometry_msgs/Twist"/>
+[/body/p[162]]     <endpoint role="fleet"        protocol="vda5050" version="3.0"
+[/body/p[163]]               topic="/uagv/v2/unitree/go2_001"/>
+[/body/p[164]]     <endpoint role="websocket"    protocol="websocket" port="9090"/>
+[/body/p[165]]   </transport>
+[/body/p[166]]   <extensions/>
+[/body/p[167]] </rrcf>
+[/body/p[168]] 7.2 Control-Binding Table
+[/body/p[169]] Every RRCF primary category and attachment binds operator input axes to physical actuation through the same pattern: a declared control block maps normalized input axes to actuator-specific targets. Section 7.1's <locomotion axes="vx vy wz"> (legged base) and <ee_control cartesian="true"> (manipulator arm) are two instances of this one control-binding table. Section 7.3 adds a third: steering, throttle, and brake for on-road vehicles.
+[/body/p[170]] 7.3 Vehicle Control-Binding Embodiment — Steering, Throttle, Brake
+[/body/p[171]] A road_vehicle primary category binds locomotion to steering angle, throttle, and brake instead of holonomic vx/vy/wz, and declares whether the active session is remote_driving or remote_assistance, gated by the safety block's authority_tier:
+[/body/p[172]] <primary category="road_vehicle">
+[/body/p[173]]   <locomotion axes="steer throttle brake" max_steer_deg="35" max_speed_mps="25"/>
+[/body/p[174]]   <modes>remote_driving remote_assistance autonomous</modes>
+[/body/p[175]] </primary>
+[/body/p[176]] ...
+[/body/p[177]] <safety>
+[/body/p[178]]   <estop required="true" topic="/rrcf/av_001/estop" qos="2"/>
+[/body/p[179]]   <watchdog timeout_ms="300" action="halt"/>
+[/body/p[180]]   <authority_tier>
+[/body/p[181]]     <tier name="remote_driving"    max_speed_mps="8" actuation="full"/>
+[/body/p[182]]     <tier name="remote_assistance" min_speed_mps="8" actuation="waypoint_grant_only"/>
+[/body/p[183]]   </authority_tier>
+[/body/p[184]] </safety>
+[/body/p[185]] Below 8 m/s a remote operator may drive directly; above that threshold the interface automatically renders remote-assistance-only controls (route confirmation, waypoint grant, resume) with no direct steering/throttle/brake actuation — the same authority-tier pattern SAE J3016, UL 4600, and AVSC describe in prose, made machine-readable.
+[/body/p[186]] 7.4 Data Replay — Sim, Egocentric, and Imitation-Learning Data to Any Robot
+[/body/p[187]] Because collection and control share one wire format (Section 3.3), a <transport> block may declare a replay endpoint alongside its live operator_cmd and telemetry endpoints. A replay endpoint accepts the same RRCF wire-format command stream — regardless of whether it originated from simulator-generated trajectories, egocentric/human demonstration video, a third-party imitation-learning dataset, or any other source — and plays it back to the declared target, physical or simulated:
+[/body/p[188]] <endpoint role="replay" protocol="rrcf_mqtt" target="physical|simulation"
+[/body/p[189]]           topic="/rrcf/av_001/replay"/>
+[/body/p[190]] One converter per source format — not one per (source format, robot) pair — is enough to move data from any collection pipeline to any RRCF-compliant robot or simulator.
+[/body/p[191]] 
+[/body/p[192]] 
+[/body/p[193]] 8. Wire Format
+[/body/p[194]] All input modalities — touch, HID gamepad, voice, gesture, XR, VLA — produce the same RRCF wire format output. The robot receives one format regardless of how the operator is interacting:
+[/body/p[195]] {
+[/body/p[196]]   "rrcf":    "1.0",        // Protocol version — always present
+[/body/p[197]]   "category":"legged",     // Morphology category
+[/body/p[198]]   "type":    "cmd",        // Message type
+[/body/p[199]]   "lx":      0.75,         // Left stick X  range [-1.0, 1.0]
+[/body/p[200]]   "ly":      0.00,         // Left stick Y  range [-1.0, 1.0]
+[/body/p[201]]   "rx":     -0.25,         // Right stick X range [-1.0, 1.0]
+[/body/p[202]]   "ry":      0.00,         // Right stick Y range [-1.0, 1.0]
+[/body/p[203]]   "speed":   0.60,         // Speed scalar  range [0.0, 1.0]
+[/body/p[204]]   "mode":    "trot",       // Active locomotion mode
+[/body/p[205]]   "skill":   null,         // Active skill id or null
+[/body/p[206]]   "estop":   false,        // E-stop — true = halt immediately
+[/body/p[207]]   "input":   "touch_web",  // Which modality produced this command
+[/body/p[208]]   "twist": {               // ROS2 geometry_msgs/Twist — always present
+[/body/p[209]]     "linear":  {"x":0.75, "y":0.00, "z":0.00},
+[/body/p[210]]     "angular": {"x":0.00, "y":0.00, "z":-0.25}
+[/body/p[211]]   },
+[/body/p[212]]   "ts": 1719000000000      // Unix timestamp milliseconds
+[/body/p[213]] }
+[/body/p[214]] 
+[/body/p[215]] 8.1 Ecosystem Interoperability (Informative)
+[/body/p[216]] RRCF does not model its wire format as a subset of any single dataset framework's SDK. Interoperability is handled at the boundary instead of by inheritance: a LeRobot [LEROBOT] robot configuration MAY be imported as one device's .rrcf declaration, and RRCF-collected episodes MAY be exported in LeRobot's own dataset format for compatibility with its ecosystem and model hub. Implementers exporting per-camera video SHOULD follow LeRobot's own chunked, index-based naming convention rather than embedding task text in filenames; task text belongs in a separate per-episode manifest, not the media path.
+[/body/p[217]] For live visualization and debugging, an RRCA implementation MAY expose the open Foxglove WebSocket protocol [FOXGLOVE] directly — a transport-only, schema-agnostic protocol with no built-in authentication. An implementation that exposes it MUST secure it at the gateway boundary using the same bearer-token mechanism as other RRCF transport endpoints (Section 13), rather than a vendor-specific agent stack.
+[/body/p[218]] 
+[/body/p[219]] 9. VLA Integration — RAG for Robots
+[/body/p[220]] RRCF enables Vision-Language-Action models to control any compliant robot via Retrieval-Augmented Generation. VLA integration has two structurally different tiers, and an implementation MUST NOT represent one as the other.
+[/body/p[221]] 9.1 Tier 1 — Discrete Skill Invocation (Zero-Shot)
+[/body/p[222]] • At session start, the VLA loads the robot's .rrcf file as structured context.
+[/body/p[223]] • Matching a natural-language instruction to a declared skill_id and emitting its pre-authored cmd is standard tool-calling and requires no training on RRCF specifically.
+[/body/p[224]] • Vendor-custom skills (heel_stretch, seed_row_align) become available to the VLA instantly because the skill declaration IS the context — no retraining.
+[/body/p[225]] • This solves the combinatorial explosion for discrete skills: thousands of robots x hundreds of skills = millions of skill invocations impossible to pre-train, made available at runtime instead.
+[/body/p[226]] 9.2 Tier 2 — Continuous, Parametric Control
+[/body/p[227]] Producing a pose delta, a joint target, or any other continuous value not covered by a pre-authored skill cmd requires the VLA's output head to already be conditioned on RRCF's declared action space — normalized appropriately, in the declared units, respecting declared joint and actuator limits. The .rrcf file supplies the target action space; it does not supply the unnormalization statistics a continuous-control policy needs to produce values in that space. Those statistics live in the policy's own training checkpoint, not in the robot's declaration. An implementation MUST NOT claim zero-shot continuous control from .rrcf context loading alone: retrieval-augmented loading gives zero-shot access to the declared skill vocabulary (Tier 1); it gives a trained policy a well-defined target for Tier 2, not a substitute for that training.
+[/body/p[228]] 9.3 Conformance Tiers
+[/body/p[229]] • RRCF-compliant — any off-the-shelf VLA paired with an external adapter that unnormalizes, remaps, and clamps its native output into RRCF's declared action space, using the policy's own checkpoint statistics. Works with any model; translation logic stays outside the standard.
+[/body/p[230]] • RRCF-native — a VLA fine-tuned so its output head's target space is RRCF's declared units directly. The adapter reduces to validation, clamping, and actuator transform only. A higher conformance bar and a stronger interoperability claim; maps to a distinct Foundation certification tier (Section 12).
+[/body/p[231]] 9.4 Scope of Benefit (Informative)
+[/body/p[232]] The table below states plainly where a declared, shared action space helps and where it does not, to avoid overclaiming.
+[/body/tbl[4]] [Table: 13 rows]
+[/body/p[233]] 
+[/body/p[234]] RAG for Robots: instead of retrieving documents, the VLA retrieves the robot's declared skill vocabulary — zero-shot. Producing continuous control in that same space is a property of how the policy was trained, not of loading the file.
+[/body/p[235]] 10. Input Modalities
+[/body/p[236]] RRCF-1.0 defines five required/optional input modality types, plus three haptic and neural modalities planned or in draft for RRCF-1.1+, and an open extension point for any future input format. All produce identical wire format:
+[/body/tbl[5]] [Table: 10 rows]
+[/body/p[237]] 
+[/body/p[238]] 11. Conformance Requirements
+[/body/p[239]] 11.1 RRCF-Compliant Robot MUST:
+[/body/p[240]] • Include a valid <rrcf version="1.0"> block in robot description or standalone .rrcf file.
+[/body/p[241]] • Accept RRCF wire format JSON on at least one declared transport endpoint.
+[/body/p[242]] • Implement E-stop: upon estop:true, halt ALL motion immediately, no exceptions.
+[/body/p[243]] • Implement watchdog: halt if no valid RRCF command within declared timeout.
+[/body/p[244]] • Publish telemetry on declared fields at minimum 1 Hz.
+[/body/p[245]] • For road_vehicle category, enforce the declared authority_tier: reject direct steering/throttle/brake actuation above the tier's speed threshold, falling back to remote-assistance-only commands.
+[/body/p[246]] • Accept RRCF wire format commands on a declared replay endpoint identically to live operator_cmd input, subject to the same E-stop and watchdog enforcement.
+[/body/p[247]] 11.2 RRCF-Compliant Controller MUST:
+[/body/p[248]] • Parse .rrcf file without requiring any other description format.
+[/body/p[249]] • Render core panel (joysticks, E-stop, speed, telemetry) for ALL categories.
+[/body/p[250]] • Render profile panel from declared category, modes, skills, attachments.
+[/body/p[251]] • Render HUD strip from <hud> fields and update button legend per active mode.
+[/body/p[252]] • Support touch_web input modality as baseline.
+[/body/p[253]] • Include estop field in EVERY transmitted command message.
+[/body/p[254]] • Normalize all input axes to range [-1.0, 1.0] in wire format output.
+[/body/p[255]] • Include rrcf version string and Twist sub-object in every command message.
+[/body/p[256]] • Parse and ignore, rather than reject, <modality> declarations of unrecognized type (forward compatibility for future input formats).
+[/body/p[257]] • Render a remote-assistance advisory panel (no direct actuation controls) when the active authority_tier is remote_assistance.
+[/body/p[258]] 11.3 Scope Principle
+[/body/p[259]] Every field RRCF defines, including the extensions in Sections 14–16, is admitted by one recurring test: does this fact affect how a command is interpreted, or whether it is safe to execute? If so, it belongs in RRCF and MUST be enforced by the same real-time watchdog as every other safety-relevant field. If a fact is inventory, scheduling, or business data — a maintenance ticket, a warranty term, a purchase order — it belongs at the platform layer above RRCF, referenced by a stable identifier (unit_id, ref) rather than duplicated inside the declaration.
+[/body/p[260]] 12. Versioning and Governance
+[/body/p[261]] RRCF uses semantic versioning. RRCF-1.0 is the initial standard. Certification authority is held by Indo-Mars Technologies / MarsGeo Platform. Category proposals follow: proposal → 60-day review → draft → 3 independent implementations → ratification → publication.
+[/body/tbl[6]] [Table: 5 rows]
+[/body/p[262]] 
+[/body/p[263]] 13. Security Considerations
+[/body/p[264]] • Transport encryption: MQTT MUST use TLS (MQTTS port 8883). WebSocket MUST use WSS in production.
+[/body/p[265]] • Authentication: Endpoints SHOULD require auth. Wire format contains no auth fields — handled at transport layer.
+[/body/p[266]] • E-stop hardware independence: Robots MUST implement hardware watchdog independent of network.
+[/body/p[267]] • VLA guardrails: Controllers and VLA integrations MUST reject commands exceeding declared safety limits.
+[/body/p[268]] • Command rate limiting: Robots SHOULD implement rate limiting against denial-of-service.
+[/body/p[269]] 14. Environment Declaration
+[/body/p[270]] A robot rarely operates alone. Much of what determines whether a command is safe — whether GPS is available, whether the workspace is indoor or outdoor, where the geofence boundary sits — is a property of the space a robot is in, not the robot itself. RRCF-1.0 defines an environment block for this: inlined for a standalone robot, or referenced for a fleet operating in a shared space.
+[/body/p[271]] environment: { space_type: indoor, localization: {...}, ... }   # standalone case
+[/body/p[272]]  
+[/body/p[273]] environment:
+[/body/p[274]]   ref: warehouse-A                                              # fleet case, same schema
+[/body/p[275]] 14.1 Environment Fields
+[/body/p[276]] • space_type — indoor / outdoor / mixed; structured / unstructured.
+[/body/p[277]] • localization — declared per capability (gps, rtk, slam, gsm), each with source: inbuilt | attachment | environment_provided, plus a reference id when environment-provided.
+[/body/p[278]] • degradation_behavior — the action the safety layer MUST take if a declared localization source becomes unavailable, enforced by the same E-stop/watchdog machinery as Section 3.4 and Section 7.3.
+[/body/p[279]] • bounds / geofence — the operating envelope for any robot referencing this environment.
+[/body/p[280]] 14.2 Declared State vs. Runtime State
+[/body/p[281]] An environment declaration has a declared half and a state half. The declared half — which localization sources exist, where boundaries sit, how the space is laid out — composes with a robot's own declaration through the mechanism in Section 15. The state half — whether a fix currently holds, which zone the robot is currently in — is a live companion read alongside the resolved declaration and MUST NOT be merged into it at compose time.
+[/body/p[282]] 14.3 Ownership of Cameras, Sensors, and Compute
+[/body/p[283]] One test decides whether a camera, sensor, or compute resource is declared in a robot's own .rrcf file or in the Environment artifact: is its pose fixed relative to the robot frame, or relative to the room? A wrist or gripper camera moves with the robot and MUST be declared in that robot's own file, under the per-camera table below. A ceiling camera, a front-of-workspace camera, or any other room-fixed sensor or compute resource MUST be declared once in the Environment artifact and referenced by every robot operating in that space rather than duplicated per robot. The same test applies to compute: an edge-inference box mounted on an arm is declared in that robot's own file, in a section distinct from the control/telemetry-binding tables of Section 7; a shared GPU rack serving a warehouse is declared once, in the Environment artifact.
+[/body/tbl[7]] [Table: 6 rows]
+[/body/p[284]] 
+[/body/p[285]] 14.4 Sensor Declarations
+[/body/p[286]] The same pattern — a semantic id, a unit, a sample rate, a mount point — applies to non-visual sensors such as force/torque and tactile arrays, following the named-key, per-sensor configuration convention already common in robot-learning tooling.
+[/body/p[287]] 15. Declaration Composition
+[/body/p[288]] A .rrcf file is not always authored by one party. An OEM publishes a base declaration for an arm; an integrator adds a third-party gripper and a customer-specific safety envelope; the assembly then operates inside a specific warehouse. RRCF-1.0 resolves this through a five-stage pipeline: Declare, Extend, Compose, Validate, Execute.
+[/body/p[289]]    OEM Base Declaration
+[/body/p[290]]             |
+[/body/p[291]]             v
+[/body/p[292]]    Integrator Overlay
+[/body/p[293]]             |
+[/body/p[294]]             v
+[/body/p[295]]    Attachments / Devices
+[/body/p[296]]             |
+[/body/p[297]]             v
+[/body/p[298]]    Environment Declaration
+[/body/p[299]]             |
+[/body/p[300]]             v
+[/body/p[301]]    +----------------------------+
+[/body/p[302]]    |          COMPOSE           |
+[/body/p[303]]    |          VALIDATE          |
+[/body/p[304]]    |                            |
+[/body/p[305]]    | - resolve inheritance      |
+[/body/p[306]]    | - resolve overrides        |
+[/body/p[307]]    | - verify provenance        |
+[/body/p[308]]    | - check compatibility      |
+[/body/p[309]]    | - require derived_limits   |
+[/body/p[310]]    | - verify safety            |
+[/body/p[311]]    | - verify signatures/hash   |
+[/body/p[312]]    +--------------+-------------+
+[/body/p[313]]                   |
+[/body/p[314]]                   v
+[/body/p[315]]         EFFECTIVE DECLARATION
+[/body/p[316]]                   |
+[/body/p[317]]                   v
+[/body/p[318]]                 RRCA
+[/body/p[319]]                   |
+[/body/p[320]]                   v
+[/body/p[321]]                 Robot
+[/body/p[322]] Two additional data flows sit alongside the Effective Declaration but are never merged into it at compose time: Runtime State (the robot's own live status) and Observations (its raw sensor streams). Section 14.2 applies identically here — both are read in parallel with the resolved declaration, not folded into it.
+[/body/p[323]] Runtime State                    Observations
+[/body/p[324]]  |                                 |
+[/body/p[325]]  +-- joint state                   +-- camera
+[/body/p[326]]  +-- battery                       +-- LiDAR
+[/body/p[327]]  +-- localization                  +-- IMU
+[/body/p[328]]  +-- RTK fix                       +-- force
+[/body/p[329]]  +-- watchdog                      +-- etc.
+[/body/p[330]]  +-- etc.
+[/body/p[331]] 15.1 Base-Plus-Overlay Composition
+[/body/p[332]] A downstream document MUST NOT edit or fork an upstream declaration. It references the base by {ref, version, hash} and declares only the delta, following the same pattern as Kustomize, Helm, and Linux Device Tree overlays:
+[/body/p[333]] base: { ref: oem/acme-arm-x1, version: 2.3.0, hash: sha256:... }
+[/body/p[334]]  
+[/body/p[335]] devices:
+[/body/p[336]]   - id: third_party_gripper
+[/body/p[337]]     mass: 1.2kg
+[/body/p[338]]     reach_delta: 150mm
+[/body/p[339]]     affects_payload: true
+[/body/p[340]]  
+[/body/p[341]] derived_limits:
+[/body/p[342]]   applies_to: [third_party_gripper]
+[/body/p[343]]   certification: integrator_declared   # or oem_certified
+[/body/p[344]]   safe_payload: 3.8kg
+[/body/p[345]]   safe_reach: 950mm
+[/body/p[346]]  
+[/body/p[347]] environment:
+[/body/p[348]]   ref: warehouse-A
+[/body/p[349]] 15.2 Mandatory Validation
+[/body/p[350]] Any devices entry that affects payload or reach (affects_payload: true, or equivalent) MUST carry a corresponding derived_limits block in the resolved declaration. A compose/validate implementation MUST refuse full-capability operation for a resolved declaration missing a required derived_limits block, applying the same enforcement posture as the mandatory E-stop and watchdog fields of Section 3.4.
+[/body/p[351]] 15.3 Provenance
+[/body/p[352]] A derived_limits block MUST carry a certification field: oem_certified for vendor-published, signed compatibility data, or integrator_declared for a self-computed figure. Both are enforced identically at runtime; the distinction is visible to the certification authority (Section 12) and MUST NOT be hidden or normalized away during compose.
+[/body/p[353]] 15.4 Scale Invariance and Service Events
+[/body/p[354]] This mechanism is scale-invariant: a simple deployment MAY collapse everything into a single robot.rrcf; a complex deployment MAY split into oem.rrcf, customer.rrcf, environment.rrcf, and devices.rrcf files. Both resolve through the same schema and algorithm — file count is a deployment choice, not a schema difference. A service event that changes a safety-relevant fact (a swapped actuator, a recalibration, a different end effector) MUST produce a new pinned version and hash and an updated derived_limits block; service tooling SHOULD emit this automatically rather than relying on manual reinstallation of a prior file.
+[/body/p[355]] 16. Identity and Lifecycle
+[/body/p[356]] Composition (Section 15) resolves a declaration for a class of hardware; identity resolves it for one physical unit.
+[/body/p[357]] 16.1 Unit Identity
+[/body/p[358]] A unit_id (serial number) anchors the base: {ref, version, hash} resolution of Section 15 to a specific physical robot, and MUST be distinct from model or type, which describe a design rather than a physical object. Manufacture date is informational metadata and MUST NOT drive runtime logic.
+[/body/p[359]] 16.2 Lifecycle Fields
+[/body/p[360]] A small, safety-scoped set of lifecycle fields — last_verified, service_interval / service_due — MAY be declared alongside identity. When declared, a compliant runtime MUST use them to degrade capability or warn when a unit is operating past its declared verification window, and MUST feed them back into the composition pipeline of Section 15 rather than treating them only as a historical log.
+[/body/p[361]] 16.3 Scope Boundary
+[/body/p[362]] Full maintenance-ticket detail — what was replaced, by whom, warranty terms, technician notes — is explicitly out of scope for RRCF. This is fleet-management data, referenced by unit_id, and belongs at the platform layer above RRCF (Section 11.3), not inside a file a real-time watchdog has to parse.
+[/body/p[363]] 16.4 Alignment with Product-Passport Regulation (Informative, Open)
+[/body/p[364]] Robots are likely to fall under product-passport regulation of the kind already adopted for other product categories in the European Union [DPP] regardless of RRCF's own choices. Aligning Identity and Lifecycle field names to that emerging standard, rather than inventing bespoke ones, is an open design question targeted for resolution before RRCF-1.1 (Section 12).
+[/body/p[365]] 
+[/body/p[366]] 17. Guard Rails (GR)
+[/body/p[367]] A guard rail (GR) is a hard limit on a declared, controllable value — a locomotion axis, a skill parameter, an end-effector bound, a custom control — enforced identically regardless of whether the command originates from a human operator, a VLA, or a replayed dataset (Section 9). Unlike the safety block's E-stop and watchdog (Section 3.4), which stop a robot after a fault, a guardrail constrains a specific value's operating range before a command is ever issued.
+[/body/p[368]] 17.1 GR Attribute (Schema)
+[/body/p[369]] A guard rail is not a dedicated block and is not confined to skills. It is a gr: attribute prefix that MAY appear on any element that already declares a controllable numeric attribute — a locomotion axis, a skill, an end-effector control, a custom control, or a device in an Environment artifact (Section 14) — at any level of the declaration. Where an element declares an attribute such as max_vx or max_steer_deg, a corresponding gr:max_vx or gr:steer_deg on that same element, if present, MUST be enforced as the operating bound in place of the declared value. A gr: attribute MUST NOT raise a bound beyond what the underlying attribute already declares — a guardrail can only tighten, never loosen, a declared capability. The three examples below show the same gr: mechanism applied at three different levels of the same declaration:
+[/body/p[370]] <locomotion axes="vx vy wz" max_vx="1.5" max_vy="0.5" max_wz="2.0"
+[/body/p[371]]             gr:max_vx="1.2" gr:max_vy="0.3"/>
+[/body/p[372]]  
+[/body/p[373]] <ee_control cartesian="true" max_force="40N"
+[/body/p[374]]             gr:max_force="20N" gr:max_reach="950mm"/>
+[/body/p[375]]  
+[/body/p[376]] <skill id="cut_onion" label="Cut Onion" cmd='{"mode":"cut"}'
+[/body/p[377]]        gr:knife_height="5in" gr:knife_lateral="5in"/>
+[/body/p[378]] A compliant robot MUST reject, not merely clamp, a generated command that would violate a resolved gr: bound, and MUST report the rejection on its telemetry channel (Section 8).
+[/body/p[379]] 17.2 Guardrail Composition and Provenance
+[/body/p[380]] A gr: value is rarely set by one party. RRCF resolves it through a composition pattern modeled on Section 15's base+overlay pipeline: a vendor-certified bound is the most permissive starting point; an integrator-declared bound MAY tighten it for a specific assembly; a venue-declared bound, carried by the Environment artifact (Section 14, Section 17.3), MAY tighten it further for a specific space; and a task-declared bound MAY tighten it once more for a specific operation or session.
+[/body/p[381]]    Vendor-Certified GR
+[/body/p[382]]             +
+[/body/p[383]]       Integrator GR
+[/body/p[384]]             +
+[/body/p[385]]           Venue GR
+[/body/p[386]]             +
+[/body/p[387]]            Task GR
+[/body/p[388]]             |
+[/body/p[389]]             v
+[/body/p[390]]        Effective GR
+[/body/p[391]] Composition MUST only ever tighten a bound inherited from an earlier layer, never loosen it; validation (Section 15.2) MUST reject a resolved declaration where a later-layer gr: value is less restrictive than the layer before it. The fully resolved value at the end of this chain is the Effective GR — the only bound actually enforced at runtime.
+[/body/p[392]] The numeric value of a gr: attribute at any layer MUST come from an authoritative source for that layer — the vendor's own certified test data, the integrator's engineering sign-off, the venue's written safety policy, or the operator's task policy — and MUST NOT be inferred, estimated, or auto-generated from unrelated documentation, such as free-text prose in a vendor's user manual, by RRCF tooling or by an authoring assistant. A gr: value with no traceable authoritative source SHOULD be treated as absent, not as zero or unconstrained.
+[/body/p[393]] 17.3 Environment-Level Guardrails
+[/body/p[394]] Guardrails are not limited to a robot's own skills. Any IoT device, sensor, or robot declared in an Environment artifact (Section 14) MAY carry its own gr: attributes, so a shared space can constrain every device operating in it — a stove, a knife-capable arm, a door lock — independent of which robot or vendor declared the device. These are the Venue GR layer of Section 17.2's composition chain.
+[/body/p[395]] 17.4 Default and Legally-Mandated Guardrails
+[/body/p[396]] An RRCF Control provider (the entity operating the RRCA and rendering the operator interface) SHOULD apply a baseline set of default guardrails before any robot-declared or integrator-declared guardrail is evaluated: geofence boundaries, venue-restricted zones, and no-fly/no-go areas (for example, airports or government buildings) — the same geofence/bounds mechanism already declared in the Environment artifact (Section 14.1). These defaults are a conformance requirement for the Control provider, not an optional feature a robot vendor can disable.
+[/body/p[397]] In-home and personal-care deployments carry their own default-guardrail expectations — for example, keeping a knife-capable skill's blade-height guardrail active whenever a child-presence signal is available, or keeping a stove or heating element's guardrail active by default — and a Control provider SHOULD expose these as pre-configured templates, not opt-in features.
+[/body/p[398]] 17.5 Guardrail Validation (Conformance)
+[/body/p[399]] A compliant implementation MUST provide a validator that checks a .rrcf file, and any Environment artifact it references, for the presence of all legally-required guardrails for the declared jurisdiction before accepting the declaration for full-capability operation. This extends Section 15.2's mandatory derived_limits validation to guardrails the same way it already applies to payload and reach.
+[/body/p[400]] 17.6 Violation Reporting
+[/body/p[401]] A guardrail violation — a rejected command, not merely an attempted one — MUST be reported on the robot's telemetry channel (Section 8) and SHOULD be reported to the registry or licensing authority the unit is registered under (Section 18.2), using the unit's unit_id (Section 16.1).
+[/body/p[402]] 18. Registry and Discovery
+[/body/p[403]] RRCF defines two related, Foundation-governed registries, and treats discovery as lookup against them rather than as a separate network protocol.
+[/body/p[404]] 18.1 Adapter Registry
+[/body/p[405]] The RRCF Foundation owns and hosts an Adapter Registry: a public, versioned index mapping {morphology category, vendor, model} to its vendor.robot.rrcf.adptr implementation and the RRCAI Spec version it targets. A controller or RRCA instance discovers an adapter by querying the registry with a robot's declared category and model (Section 6) rather than bundling adapters for every possible robot.
+[/body/p[406]] 18.2 Unit and Licensing Registry
+[/body/p[407]] A deployed unit MAY be registered under a licensing authority — the RRCF Foundation itself, or a local regulatory body for jurisdictions that require it (an equivalent of a vehicle licensing authority, in particular for road_vehicle-category units) — keyed by unit_id (Section 16.1). A registered unit's guardrail violations (Section 17.5) and safety-relevant composition changes (Section 15.4) SHOULD be reported to its licensing authority, giving a jurisdiction the same accountability mechanism for autonomous units that already exists for licensed vehicles and drivers.
+[/body/p[408]] 18.3 Discovery
+[/body/p[409]] Discovery is registry lookup, not a separate protocol: a controller discovers a robot's adapter via the Adapter Registry (Section 18.1); a robot or controller discovers the Environment artifact for its current space via the ref it was configured with, or a local advertisement mechanism out of scope for RRCF itself; and a licensing authority discovers a unit's compliance history via the Unit and Licensing Registry (Section 18.2). RRCF does not define a new network-discovery protocol — it defines what gets looked up and where, leaving transport-level discovery (mDNS, a fleet platform's own device list, and similar mechanisms) to the deployment.
+[/body/p[410]] 19. RRCF as a Robot Integration Manual
+[/body/p[411]] Beyond its role as an operator-interface and integration standard, a .rrcf declaration can serve as a robot's integration manual: one authored declaration, three consumers.
+[/body/p[412]]            RRCF Specification
+[/body/p[413]]                    |
+[/body/p[414]]                    v
+[/body/p[415]]       RRCF Robot Declaration (.rrcf)
+[/body/p[416]]                    |
+[/body/p[417]]         +----------+----------+
+[/body/p[418]]         |          |          |
+[/body/p[419]]    User Manual  Control UI  Validator
+[/body/p[420]]    (human         (operator/     |
+[/body/p[421]]     reader)        AI agent)     v
+[/body/p[422]]                              vendor.robot
+[/body/p[423]]                              .rrcf.adptr
+[/body/p[424]] 19.1 Why One Declaration Can Replace a Manual
+[/body/p[425]] A conventional robot ships with a PDF or printed manual (how to operate it), a vendor-specific SDK or control app (how to control it), and, if the vendor participates in a certification program, a separate compliance checklist. RRCF collapses these into one authored artifact: the same morphology, skill, safety, and guardrail declarations a Control UI renders (Section 3.1) are also sufficient to generate human-readable operating instructions, and the same declaration a Validator checks for conformance (Section 11, Section 17.4) is what a .adptr implementation binds against. A vendor that documents its robot accurately in .rrcf has, as a byproduct, satisfied the integration requirement, rather than separately learning an integration SDK.
+[/body/p[426]] 19.2 Example: Generated Manual (Informative)
+[/body/p[427]] A Validator or manual-generation tool can render a .rrcf declaration directly into a human-readable summary, with no content beyond what the declaration itself states — nothing in the block below is invented; every line traces to a declared element (CONTROL from locomotion/control-binding axes and their resolved Effective GR, TELEMETRY from the telemetry block, SAFETY from the safety block and Section 17, INTERFACES from the declared transport endpoints, ADAPTER from the Adapter Registry entry, Section 18.1):
+[/body/p[428]] Robot: ACME Rover X1
+[/body/p[429]] RRCF: READY / COMPLIANT
+[/body/p[430]]  
+[/body/p[431]] CONTROL
+[/body/p[432]]   Forward       -1.0 to +1.0 m/s
+[/body/p[433]]   Rotation      -2.0 to +2.0 rad/s
+[/body/p[434]]  
+[/body/p[435]] TELEMETRY
+[/body/p[436]]   Battery
+[/body/p[437]]   Velocity
+[/body/p[438]]   IMU
+[/body/p[439]]   GPS
+[/body/p[440]]  
+[/body/p[441]] SAFETY
+[/body/p[442]]   E-stop
+[/body/p[443]]   Watchdog
+[/body/p[444]]   GuardRails
+[/body/p[445]]  
+[/body/p[446]] INTERFACES
+[/body/p[447]]   WebSocket
+[/body/p[448]]   ROS2
+[/body/p[449]]   MQTT
+[/body/p[450]]  
+[/body/p[451]] ADAPTER
+[/body/p[452]]   org.acme.rover-x1.adptr
+[/body/p[453]] 19.3 Worked Examples from Real Hardware (Informative)
+[/body/p[454]] Converting an existing vendor manual into a .rrcf declaration, with every numeric bound sourced per Section 17.2 rather than inferred from prose, is the most direct way to validate this claim for a real product; a published humanoid or manipulator manual converted this way is intended as a companion artifact to this specification.
+[/body/p[455]] 
+[/body/p[456]] 20. References
+[/body/p[457]] • [RFC2119]   Key words for RFCs, Bradner, 1997.
+[/body/p[458]] • [VDA5050]   VDA 5050 v3.0, VDA/VDMA, March 2026.
+[/body/p[459]] • [OPEN-RMF]  Open Robotics Middleware Framework, OSRA, 2024.
+[/body/p[460]] • [AMRA-271]  AMRA-271:2025, Autonomous Mobile Robot Alliance, 2025.
+[/body/p[461]] • [ANSI-A3]   ANSI/A3 R15.06-2025, A3/ANSI, October 2025.
+[/body/p[462]] • [HALOS]     NVIDIA Halos Robotics Safety System, NVIDIA, June 2026.
+[/body/p[463]] • [W3C-PAD]   Gamepad API, W3C, 2024.
+[/body/p[464]] • [WEBXR]     WebXR Device API, W3C, 2024.
+[/body/p[465]] • [SAE-J3016]  Taxonomy and Definitions for Terms Related to Driving Automation Systems, SAE International, 2021 (rev. 2026).
+[/body/p[466]] • [UL4600]     UL 4600, Standard for Safety for the Evaluation of Autonomous Products, UL Standards & Engagement, 2023.
+[/body/p[467]] • [AVSC-RA]    AVSC00006202008, Considerations for Remote Assistance in Automated Driving System (ADS) Operations, SAE AVSC, 2020.
+[/body/p[468]] • [DPP]  Regulation (EU) 2024/1781 (Ecodesign for Sustainable Products Regulation), European Parliament and Council, 2024; Digital Product Passport harmonized standards, Commission Implementing Decision (EU) 2026/1736.
+[/body/p[469]] • [LEROBOT]  LeRobot, Hugging Face, 2025.
+[/body/p[470]] • [FOXGLOVE]  Foxglove WebSocket Protocol, Foxglove Technologies, 2024.
+[/body/p[471]] • [RRCF-REF]  RRCF Reference Implementation, Indo-Mars Technologies, July 8, 2026.
+[/body/p[472]] 
+[/body/p[473]] Author
+[/body/p[474]] [YOUR FULL LEGAL NAME]  |  Indo-Mars Technologies / MarsGeo Platform
+[/body/p[475]] [YOUR ADDRESS]  |  [EMAIL]  |  indo-mars.com  |  rrcf.io (pending)
+[/body/p[476]] Copyright (c) 2026 [YOUR FULL LEGAL NAME]. Apache License 2.0.
